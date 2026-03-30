@@ -11,3 +11,6 @@ INITIAL DD REVIEW -- 2026-03-30 01:35
 - prelim assigning of tasks to devos in group
 - revise wording for MVP
 - styling changes, nothing much
+
+rohanS -- 2026-03-30 11:46
+- Starting the preprocessing
