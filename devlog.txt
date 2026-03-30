@@ -1,1 +1,9 @@
-(Temp: Each entry should begin with the following format: firstL -- TIMESTAMP\n ( e.g.: topherM -- 1999-12-31 23:59 ))
+davidL -- 2026-03-30 01:35
+- revised dd
+- printed dd HC
+
+DEVLOG REVISIONS -- 2026-03-30 01:35
+- revised data types for data table (REAL --> FLOAT)
+- prelim assigning of tasks to devos in group
+- revise wording for MVP
+- styling changes, nothing much
