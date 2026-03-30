@@ -2,7 +2,7 @@ davidL -- 2026-03-30 01:35
 - revised dd
 - printed dd HC
 
-DEVLOG REVISIONS -- 2026-03-30 01:35
+INITIAL DD REVIEW -- 2026-03-30 01:35
 - revised data types for data table (REAL --> FLOAT)
 - prelim assigning of tasks to devos in group
 - revise wording for MVP
