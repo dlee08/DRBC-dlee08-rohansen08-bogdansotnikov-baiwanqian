@@ -17,3 +17,10 @@ rohanS -- 2026-03-30 11:46
 
 davidL -- 2026-03-31 01:28
 - added barebones flask app
+
+rohanS -- 2026-04-01 00:50
+- served flask app remotely
+
+davidL -- 2026-04-01 050:56
+- added requirements.txt, package.json
+- updated readme with link to remote host
