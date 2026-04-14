@@ -1,7 +1,10 @@
 from pathlib import Path
 
+import requests
 import pandas as pd
 from flask import Flask, jsonify, render_template, request
+import json
+import urllib.request as urllib
 
 app = Flask(__name__)
 DATA_PATH = Path(__file__).resolve().parent / "data" / "IKEA_product_catalog.csv"
@@ -65,6 +68,24 @@ def demo_graph_data():
     "data": build_demo_data(country)
   })
 
+def get_url(curr):
+  return f'https://v6.exchangerate-api.com/v6/c608df1404c6c6b0bf2cd5bb/latest/{curr}'
+
+@app.route("/")
+def home_page():
+  #return "the big leagues are calling for us twin"
+  return redirect("https://palantir.com")
+
+@app.route("/api_testing")
+def api_testing():
+  with urllib.urlopen(get_url("AED")) as response:
+    json_data = response.read()
+
+  apod_data = json.loads(json_data)
+
+  json_string = json.dumps(apod_data, indent=2)
+  print(json_string)
+  return json_string
 
 if __name__ == "__main__":
   app.debug = True
