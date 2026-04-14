@@ -56,19 +56,19 @@ def homepage():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
-	usernames = [row[0] for row in fetch("user_base", "TRUE", "username")]
-	elif not request.form['username'] in usernames:
-            return render_template("login.html",
-                error="Wrong &nbsp username &nbsp or &nbsp password!<br><br>",)
-        elif request.form['password'] != fetch("user_base", "username = ?", "password", (request.form['username'],))[0][0]:
-                return render_template("login.html",
-                    error="Wrong &nbsp username &nbsp or &nbsp password!<br><br>",)
-        else:
-            session["u_rowid"] = fetch("user_base", "username = ?", "rowid", (request.form['username'],))[0]
-    if 'u_rowid' in session:
-        return redirect("/")
-    session.clear()
-    return render_template("login.html")
+  usernames = [row[0] for row in fetch("user_base", "TRUE", "username")]
+  if not request.form['username'] in usernames:
+    return render_template("login.html",
+                           error="Wrong &nbsp username &nbsp or &nbsp password!<br><br>")
+  elif request.form['password'] != fetch("user_base", "username = ?", "password", (request.form['username'],))[0][0]:
+    return render_template("login.html",
+                           error="Wrong &nbsp username &nbsp or &nbsp password!<br><br>")
+  else:
+    session["u_rowid"] = fetch("user_base", "username = ?", "rowid", (request.form['username'],))[0]
+  if 'u_rowid' in session:
+    return redirect("/")
+  session.clear()
+  return render_template("login.html")
 
 @app.route("/demo_graph")
 def demo_graph():
