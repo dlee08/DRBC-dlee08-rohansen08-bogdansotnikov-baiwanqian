@@ -30,3 +30,6 @@ davidL -- 2026-04-14 00:27
 
 rohanS -- 2026-04-14 01:39
 - added a basic index.html describing our site's features
+
+davidL -- 2026-04-14 11:30
+- fixed merge conflict with pre-break work on API integration
