@@ -21,6 +21,9 @@ davidL -- 2026-03-31 01:28
 rohanS -- 2026-04-01 00:50
 - served flask app remotely
 
-davidL -- 2026-04-01 050:56
+davidL -- 2026-04-01 00:56
 - added requirements.txt, package.json
 - updated readme with link to remote host
+
+davidL -- 2026-04-14 00:27
+- added d3 demo for standups, work on api integration for y-axis scaling next
