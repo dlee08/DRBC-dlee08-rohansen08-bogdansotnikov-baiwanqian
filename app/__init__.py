@@ -38,7 +38,7 @@ def build_demo_data(country):
 
 @app.route("/")
 def hello_world():
-  return "the big leagues are calling us twin"
+  return render_template("index.html")
 
 
 @app.route("/demo_graph")
