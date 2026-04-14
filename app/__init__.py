@@ -10,6 +10,15 @@ app = Flask(__name__)
 DATA_PATH = Path(__file__).resolve().parent / "data" / "IKEA_product_catalog.csv"
 MAX_PRODUCT_TYPES = 30
 
+#DB
+DB_FILE = "data.db"
+
+db = sqlite3.connect(DB_FILE) #open if file exists, otherwise create
+c = db.cursor()
+
+c.execute("""CREATE TABLE IF NOT EXISTS user_base(username TEXT, password TEXT);""")
+db.commit()
+db.close()
 
 def load_catalog():
   return pd.read_csv(DATA_PATH, usecols=["country", "product_type", "price"])
@@ -39,10 +48,27 @@ def build_demo_data(country):
   return grouped.to_dict(orient="records")
 
 
-@app.route("/")
-def hello_world():
+@app.route("/", methods=["GET", "POST"])
+def homepage():
+  if not 'u_rowid' in session:
+  	return redirect("/login")
   return render_template("index.html")
 
+@app.route("/login", methods=["GET", "POST"])
+def login():
+	usernames = [row[0] for row in fetch("user_base", "TRUE", "username")]
+	elif not request.form['username'] in usernames:
+            return render_template("login.html",
+                error="Wrong &nbsp username &nbsp or &nbsp password!<br><br>",)
+        elif request.form['password'] != fetch("user_base", "username = ?", "password", (request.form['username'],))[0][0]:
+                return render_template("login.html",
+                    error="Wrong &nbsp username &nbsp or &nbsp password!<br><br>",)
+        else:
+            session["u_rowid"] = fetch("user_base", "username = ?", "rowid", (request.form['username'],))[0]
+    if 'u_rowid' in session:
+        return redirect("/")
+    session.clear()
+    return render_template("login.html")
 
 @app.route("/demo_graph")
 def demo_graph():
