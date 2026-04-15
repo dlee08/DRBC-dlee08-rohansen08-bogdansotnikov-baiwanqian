@@ -20,6 +20,11 @@ def get_countries():
   return sorted(catalog["country"].dropna().astype(str).unique().tolist())
 
 
+def get_product_types():
+    catalog = load_catalog()
+    return sorted(catalog["product_type"].dropna().astype(str).unique().tolist())
+
+
 def build_demo_data(country):
   catalog = load_catalog()
   filtered = catalog[catalog["country"] == country].dropna(subset=["product_type", "price"])
@@ -32,6 +37,18 @@ def build_demo_data(country):
   filtered = filtered[filtered["product_type"].isin(top_product_types)]
   grouped = (
     filtered.groupby("product_type", as_index=False)["price"]
+    .mean()
+    .sort_values("price", ascending=False)
+  )
+  grouped["price"] = grouped["price"].round(2)
+  return grouped.to_dict(orient="records")
+
+
+def build_choropleth_data(product_type):
+  catalog = load_catalog()
+  filtered = catalog[catalog["product_type"] == product_type].dropna(subset=["country", "price"])
+  grouped = (
+    filtered.groupby("country", as_index=False)["price"]
     .mean()
     .sort_values("price", ascending=False)
   )
@@ -53,6 +70,17 @@ def demo_graph():
     countries=countries,
     default_country=default_country
   )
+
+
+@app.route("/choropleth")
+def choropleth():
+    product_types = get_product_types()
+    default_product_type = product_types[0] if product_types else ""
+    return render_template (
+    "choropleth.html",
+    product_types = product_types,
+    default_product_type = default_product_type
+)
 
 
 @app.route("/api/demo_graph_data")
