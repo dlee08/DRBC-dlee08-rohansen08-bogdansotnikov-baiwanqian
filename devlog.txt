@@ -40,3 +40,6 @@ christineC -- 2026-04-15 8:00
 rohanS -- 2026-04-15 11:17
 - fixed csv loading
 - used advanced low latency coding techniques to improve runtime performance 300% (not reloading the csv for each request)
+
+bogdanS -- 2026-04-15 11:34
+- login feature
