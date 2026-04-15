@@ -10,6 +10,7 @@ app = Flask(__name__)
 DATA_PATH = Path(__file__).resolve().parent / "data" / "IKEA_product_catalog.csv"
 MAX_PRODUCT_TYPES = 30
 
+csv = pd.read_csv(DATA_PATH, usecols=["country", "product_type", "price"])
 
 def load_catalog():
   return pd.read_csv(DATA_PATH, usecols=["country", "product_type", "price"])
@@ -26,7 +27,7 @@ def get_product_types():
 
 
 def build_demo_data(country):
-  catalog = load_catalog()
+  catalog = csv
   filtered = catalog[catalog["country"] == country].dropna(subset=["product_type", "price"])
   top_product_types = (
     filtered["product_type"]
@@ -45,7 +46,7 @@ def build_demo_data(country):
 
 
 def build_choropleth_data(product_type):
-  catalog = load_catalog()
+  catalog = csv
   filtered = catalog[catalog["product_type"] == product_type].dropna(subset=["country", "price"])
   grouped = (
     filtered.groupby("country", as_index=False)["price"]
