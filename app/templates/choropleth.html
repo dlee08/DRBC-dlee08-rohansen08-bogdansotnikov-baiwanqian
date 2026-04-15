@@ -20,8 +20,28 @@
 
     <script>
       const initialProductType = {{ default_product_type|tojson }};
+      
+      var svg = d3.select("svg"), width = +svg.attr("width"), height = +svg.attr("height");
 
-      var projection = d3.geoMercator()
+      var projection = d3.geoMercator().scale(130).center([0, 25]).translate([width/2, height/1.6]);
+      var path = d3.geoPath().projection(projection);
+      
+      var data = d3.map();
+      var colorScale = d3.scaleThreshold().domain([20, 40, 60, 80, 120, 200]).range(d3.schemeBlues[7]);
+      
+      function drawMap() {
+        svg.selectAll("path")
+   
+          .attr("d", path)
+          .attr("stroke", "white")
+          .attr("stroke-width", 0.5)
+          .attr("fill", function(d) {
+
+            if (value != null) {
+              return colorScale(value);
+            }
+            return "#dddddd";
+          });
 
     </script>
   </body>
