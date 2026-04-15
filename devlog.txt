@@ -33,3 +33,6 @@ rohanS -- 2026-04-14 01:39
 
 davidL -- 2026-04-14 11:30
 - fixed merge conflict with pre-break work on API integration
+
+christineC -- 2026-04-15 8:00
+- Working on d3 choropleth map
