@@ -30,3 +30,6 @@ davidL -- 2026-04-14 00:27
 
 rohanS -- 2026-04-14 01:39
 - added a basic index.html describing our site's features
+
+bogdanS -- 2026-04-15 11:34
+- login feature
