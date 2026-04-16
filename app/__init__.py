@@ -15,7 +15,7 @@ MAX_PRODUCT_TYPES = 30
 DEFAULT_TARGET_CURRENCY = "USD"
 app.secret_key = "6767"
 
-csv = pd.read_csv(DATA_PATH, usecols=["country", "product_type", "price"])
+csv = pd.read_csv(DATA_PATH, usecols=["country", "product_type", "price", "currency"])
 
 #DB
 DB_FILE = "data.db"
@@ -77,9 +77,9 @@ def get_product_types():
     catalog = load_catalog()
     return sorted(catalog["product_type"].dropna().astype(str).unique().tolist())
 
-def build_demo_data(country):
+def build_demo_data(country, target_currency):
   catalog = csv
-  filtered = catalog[catalog["country"] == country].dropna(subset=["product_type", "price"])
+  filtered = catalog[catalog["country"] == country].dropna(subset=["product_type", "price", "currency"]).copy()
   top_product_types = (
     filtered["product_type"]
     .value_counts()
