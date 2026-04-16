@@ -23,7 +23,7 @@ DB_FILE = "data.db"
 db = sqlite3.connect(DB_FILE) #open if file exists, otherwise create
 c = db.cursor()
 
-c.execute("CREATE TABLE IF NOT EXISTS user_base(username TEXT, password TEXT);")
+c.execute("CREATE TABLE IF NOT EXISTS user_base(username TEXT, password TEXT, path TEXT);")
 db.commit()
 db.close()
 
@@ -134,6 +134,22 @@ def login():
     session.clear()
   return render_template("login.html")
 
+@app.route('/register', methods=["GET", "POST"])
+def register():
+    if 'u_rowid' in session:
+        return redirect("/")
+    if request.method == "POST":
+        if not request.form['password'] == request.form['confirm']:
+            return render_template("register.html",
+                                   error="Passwords do not match, please try again! <br><br>")
+        if not create_user(request.form['username'], request.form['password']):
+            return render_template("register.html",
+                                   error="Username already taken, please try again! <br><br>")
+        else:
+            return redirect("/login")
+    return render_template("register.html")
+
+
 @app.route("/demo_graph")
 def demo_graph():
   countries = get_countries()
@@ -199,6 +215,26 @@ def fetch(table, criteria, data, params = ()):
     db.commit()
     db.close()
     return data
+
+def create_user(username, password):
+    db = sqlite3.connect(DB_FILE)
+    c = db.cursor()
+    c.execute("SELECT username FROM user_base")
+    list = [username[0] for username in c.fetchall()]
+    if not username in list:
+        # creates user in table
+        c.execute("INSERT INTO user_base VALUES (?, ?, ?)",(username, password, ""))
+
+        # set path
+        c.execute("SELECT rowid FROM user_base WHERE username=?", (username,))
+        c.execute(f"UPDATE user_base SET path = '/profile/{c.fetchall()[0][0]}' WHERE username=?", (username,))
+        db.commit()
+        db.close()
+        return True
+    db.commit()
+    db.close()
+    return False
+
 
 if __name__ == "__main__":
   app.debug = True
