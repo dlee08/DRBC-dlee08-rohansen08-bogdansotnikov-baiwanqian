@@ -23,7 +23,7 @@ DB_FILE = "data.db"
 db = sqlite3.connect(DB_FILE) #open if file exists, otherwise create
 c = db.cursor()
 
-c.execute("CREATE TABLE IF NOT EXISTS user_base(username TEXT, password TEXT, path TEXT);")
+c.execute("CREATE TABLE IF NOT EXISTS user_base(username TEXT, password TEXT, path TEXT, saved TEXT);")
 db.commit()
 db.close()
 
@@ -149,6 +149,29 @@ def register():
             return redirect("/login")
     return render_template("register.html")
 
+@app.route('/logout', methods=["GET", "POST"])
+def logout():
+    session.pop("u_rowid", None)
+    return redirect("/login")
+
+
+@app.route('/profile', methods=["GET", "POST"])
+def profileDefault():
+    if not 'u_rowid' in session:
+        return redirect("/login")
+    return redirect(f"/profile/{session['u_rowid'][0]}")
+
+@app.route('/profile/<u_rowid>', methods=["GET", "POST"]) # makes u_rowid a variable that is passed to the function
+def profile(u_rowid):
+    if not 'u_rowid' in session:
+        return redirect("/login")
+    u_data = fetch('user_base', "ROWID=?", 'username, saved', (u_rowid,))[0]
+
+    return render_template("profile.html",
+        username=u_data[0])
+
+
+
 
 @app.route("/demo_graph")
 def demo_graph():
@@ -223,7 +246,7 @@ def create_user(username, password):
     list = [username[0] for username in c.fetchall()]
     if not username in list:
         # creates user in table
-        c.execute("INSERT INTO user_base VALUES (?, ?, ?)",(username, password, ""))
+        c.execute("INSERT INTO user_base VALUES (?, ?, ?, ?)",(username, password, "", ""))
 
         # set path
         c.execute("SELECT rowid FROM user_base WHERE username=?", (username,))
