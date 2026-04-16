@@ -1,6 +1,6 @@
 christineC -- 2026-03-28 11:11
 - Added temp project desc and install guide
-- Added API readme 
+- Added API readme
 
 davidL -- 2026-03-30 01:35
 - revised dd
@@ -33,3 +33,13 @@ rohanS -- 2026-04-14 01:39
 
 davidL -- 2026-04-14 11:30
 - fixed merge conflict with pre-break work on API integration
+
+christineC -- 2026-04-15 8:00
+- Working on d3 choropleth map
+
+rohanS -- 2026-04-15 11:17
+- fixed csv loading
+- used advanced low latency coding techniques to improve runtime performance 300% (not reloading the csv for each request)
+
+bogdanS -- 2026-04-15 11:34
+- login feature

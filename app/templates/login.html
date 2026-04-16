@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+
+<html>
+
+  <head>
+  </head>
+
+  <body>
+      <h1>
+        Login
+      </h1>
+
+          <p id="prompt"> Please &nbsp enter &nbsp your &nbsp username &nbsp and &nbsp password &nbsp below: </p>
+
+          <form method='POST' action="/login">
+            <p>
+              {{ error | safe }}
+              USERNAME:
+            </p>
+            <input type="text" name="username" required>
+            <br>
+            <p> PASSWORD: </p>
+            <input type="password" name="password" required>
+            <br><br>
+            <input type="submit" name="sub1" class="sub1" value="Submit">
+          </form>
+
+          <br>
+
+          <button onclick="location.href='/register'" id="register">Register</button>
+  </body>
+
+  <footer>
+
+  </footer>
+
+</html>

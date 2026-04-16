@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title> IKEA Choropleth Demo </title>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  </head>
+  <body>
+    <div>
+      <label for="product-type-select">Product Type</label>
+      <select id="product-type-select">
+        {% for product_type in product_types %}
+        <option value="{{ product_type }}" {% if product_type == default_product_type %}selected{% endif %}>{{ product_type }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <svg id="map" width="960" height="550"></svg>
+
+    <script>
+      const initialProductType = {{ default_product_type|tojson }};
+      
+      var svg = d3.select("svg"), width = +svg.attr("width"), height = +svg.attr("height");
+
+      var projection = d3.geoMercator().scale(130).center([0, 25]).translate([width/2, height/1.6]);
+      var path = d3.geoPath().projection(projection);
+      
+      var data = d3.map();
+      var colorScale = d3.scaleThreshold().domain([20, 40, 60, 80, 120, 200]).range(d3.schemeBlues[7]);
+      
+      function drawMap() {
+        svg.selectAll("path")
+   
+          .attr("d", path)
+          .attr("stroke", "white")
+          .attr("stroke-width", 0.5)
+          .attr("fill", function(d) {
+
+            if (value != null) {
+              return colorScale(value);
+            }
+            return "#dddddd";
+          });
+
+    </script>
+  </body>
+</html>
