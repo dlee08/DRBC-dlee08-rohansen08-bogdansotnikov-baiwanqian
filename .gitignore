@@ -2,3 +2,4 @@ __pycache__/
 *.py[cod]
 app/venv/
 app/data/*.csv
+app/keys/key_exchangerate-api.txt

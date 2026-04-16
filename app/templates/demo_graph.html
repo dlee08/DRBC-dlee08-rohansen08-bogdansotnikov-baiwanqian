@@ -15,6 +15,13 @@
         {% endfor %}
       </select>
 
+      <label for="currency-select">Currency</label>
+      <select id="currency-select">
+        {% for currency in currencies %}
+        <option value="{{ currency }}" {% if currency == default_currency %}selected{% endif %}>{{ currency }}</option>
+        {% endfor %}
+      </select>
+
       <label for="order-select">Order</label>
       <select id="order-select">
         <option value="alphabetical">Alphabetical</option>
@@ -26,7 +33,9 @@
 
     <script>
       const initialCountry = {{ default_country|tojson }};
+      const initialCurrency = {{ default_currency|tojson }};
       let data = [];
+      let selectedCurrency = initialCurrency;
 
       const width = 960;
       const height = 500;
@@ -45,7 +54,9 @@
         .range([height - marginBottom, marginTop]);
 
       const xAxis = d3.axisBottom(x).tickSizeOuter(0);
-      const yAxis = d3.axisLeft(y).tickFormat((value) => `$${value.toLocaleString()}`);
+      const yAxis = d3.axisLeft(y).tickFormat(
+        (value) => `${value.toLocaleString(undefined, {maximumFractionDigits: 0})} ${selectedCurrency}`
+      );
 
       const svg = d3.create("svg")
         .attr("viewBox", [0, 0, width, height])
@@ -112,9 +123,15 @@
       }
 
       async function loadCountry(country) {
-        const response = await fetch(`/api/demo_graph_data?country=${encodeURIComponent(country)}`);
+        const response = await fetch(
+          `/api/demo_graph_data?country=${encodeURIComponent(country)}&target_currency=${encodeURIComponent(selectedCurrency)}`
+        );
         const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error || "Unable to load chart data.");
+        }
         data = payload.data;
+        selectedCurrency = payload.target_currency;
         update(document.getElementById("order-select").value);
       }
 
@@ -124,6 +141,11 @@
 
       document.getElementById("country-select").addEventListener("input", (event) => {
         loadCountry(event.target.value);
+      });
+
+      document.getElementById("currency-select").addEventListener("input", (event) => {
+        selectedCurrency = event.target.value;
+        loadCountry(document.getElementById("country-select").value);
       });
 
       document.getElementById("chart").appendChild(svg.node());
