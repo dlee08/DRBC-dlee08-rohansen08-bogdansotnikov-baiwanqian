@@ -15,7 +15,21 @@ MAX_PRODUCT_TYPES = 30
 DEFAULT_TARGET_CURRENCY = "USD"
 app.secret_key = "6767"
 
-csv = pd.read_csv(DATA_PATH, usecols=["country", "product_type", "price", "currency"])
+csv = pd.read_csv(
+    DATA_PATH,
+    usecols=[
+    "product_id",
+    "product_name",
+    "product_type",
+    "main_category",
+    "country",
+    "price",
+    "currency",
+    "product_rating",
+    "product_rating_count",
+    "url"
+    ]
+)
 
 #DB
 DB_FILE = "data.db"
@@ -28,7 +42,21 @@ db.commit()
 db.close()
 
 def load_catalog():
-  return pd.read_csv(DATA_PATH, usecols=["country", "product_type", "price", "currency"])
+  return pd.read_csv(
+      DATA_PATH,
+      usecols=[
+      "product_id",
+      "product_name",
+      "product_type",
+      "main_category",
+      "country",
+      "price",
+      "currency",
+      "product_rating",
+      "product_rating_count",
+      "url"
+      ]
+  )
 
 
 def load_exchange_rate_api_key():
@@ -63,8 +91,21 @@ def get_conversion_rates(base_currency):
 
 
 def get_countries():
-  catalog = load_catalog()
-  return sorted(catalog["country"].dropna().astype(str).unique().tolist())
+  return sorted(csv["country"].dropna().astype(str).unique().tolist())
+
+def get_main_categories():
+  return sorted(csv["main_category"].dropna().astype(str).unique().tolist())
+
+def get_catalog_items(limit=24, country=None, category=None, search=None):
+    catalog = csv
+    if country:
+        catalog = catalog[catalog["country"] == country]
+    if category:
+        catalog = catalog[catalog["main_category"] == category]
+    if search:
+        catalog = catalog[catalog["product_name"].str.contains(search, case=False, na=False)]
+    catalog = catalog.sort_values("product_name").head(limit)
+    return catalog.to_dict(orient="records")
 
 
 def convert_price(amount, source_currency, target_currency):
@@ -171,6 +212,30 @@ def profile(u_rowid):
         username=u_data[0])
 
 
+
+@app.route("/catalog")
+def catalog():
+    countries = get_countries()
+    categories = get_main_categories()
+    selected_country = request.args.get("country", "")
+    selected_category = request.args.get("category", "")
+    search = request.args.get("search", "")
+
+    items = get_catalog_items(
+        limit=24,
+        country=selected_country or None,
+        category=selected_category or None,
+        search=search or None
+    )
+    return render_template(
+        "catalog.html",
+        items=items,
+        countries=countries,
+        categories=categories,
+        selected_country=selected_country,
+        selected_category=selected_category,
+        search=search
+    )
 
 
 @app.route("/demo_graph")
