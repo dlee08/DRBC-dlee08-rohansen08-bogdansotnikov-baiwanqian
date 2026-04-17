@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ product_name }}</title>
+  </head>
+
+  <body class="bg-primary-subtle">
+    <div class="container py-4">
+      <a href="/catalog" class="btn btn-outline-secondary btn-sm mb-3">Back to Catalog</a>
+
+      <h1 class="mb-2">{{ product_name }}</h1>
+      <p class="mb-4">Compare this product.</p>
+
+      <div class="table-responsive">
+        <table class="table table-striped table-bordered bg-white">
+          <thead>
+            <tr>
+              <th>Country</th>
+              <th>Price</th>
+              <th>Rating</th>
+              <th>Reviews</th>
+              <th>Link</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in items %}
+            <tr>
+              <td>{{ item.country }}</td>
+              <td>{{ item.price }} {{ item.currency }}</td>
+              <td>
+                {% if item.product_rating and item.product_rating != "none" %}
+                  {{ item.product_rating }}
+                {% else %}
+                  N/A
+                {% endif %}
+              </td>
+              <td>
+                {% if item.product_rating_count and item.product_rating_count != "none" %}
+                  {{ item.product_rating_count }}
+                {% else %}
+                  N/A
+                {% endif %}
+              </td>
+              <td>
+                <a href="{{ item.url }}" target="_blank" class="btn btn-outline-primary btn-sm">View on IKEA</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </body>
+</html>

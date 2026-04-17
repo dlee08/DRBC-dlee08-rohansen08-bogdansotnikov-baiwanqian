@@ -15,7 +15,21 @@ MAX_PRODUCT_TYPES = 30
 DEFAULT_TARGET_CURRENCY = "USD"
 app.secret_key = "6767"
 
-csv = pd.read_csv(DATA_PATH, usecols=["country", "product_type", "price", "currency"])
+csv = pd.read_csv(
+    DATA_PATH,
+    usecols=[
+    "product_id",
+    "product_name",
+    "product_type",
+    "main_category",
+    "country",
+    "price",
+    "currency",
+    "product_rating",
+    "product_rating_count",
+    "url"
+    ]
+)
 
 #DB
 DB_FILE = "data.db"
@@ -23,12 +37,26 @@ DB_FILE = "data.db"
 db = sqlite3.connect(DB_FILE) #open if file exists, otherwise create
 c = db.cursor()
 
-c.execute("CREATE TABLE IF NOT EXISTS user_base(username TEXT, password TEXT, path TEXT);")
+c.execute("CREATE TABLE IF NOT EXISTS user_base(username TEXT, password TEXT, path TEXT, saved TEXT);")
 db.commit()
 db.close()
 
 def load_catalog():
-  return pd.read_csv(DATA_PATH, usecols=["country", "product_type", "price", "currency"])
+  return pd.read_csv(
+      DATA_PATH,
+      usecols=[
+      "product_id",
+      "product_name",
+      "product_type",
+      "main_category",
+      "country",
+      "price",
+      "currency",
+      "product_rating",
+      "product_rating_count",
+      "url"
+      ]
+  )
 
 
 def load_exchange_rate_api_key():
@@ -63,9 +91,7 @@ def get_conversion_rates(base_currency):
 
 
 def get_countries():
-  catalog = load_catalog()
-  return sorted(catalog["country"].dropna().astype(str).unique().tolist())
-
+  return sorted(csv["country"].dropna().astype(str).unique().tolist())
 
 def convert_price(amount, source_currency, target_currency):
   if source_currency == target_currency:
@@ -111,6 +137,57 @@ def build_choropleth_data(product_type):
   return grouped.to_dict(orient="records")
 
 
+# ================= Catalog Helpers ===================
+def display_category(raw):
+    if not raw:
+        return "Other"
+    category = str(raw).strip().lower()
+    if "bathroom" in category:
+        return "Bathroom"
+    if "kitchen" in category or "cookware" in category or "tableware" in category or "dishwash" in category:
+        return "Kitchen & Dining"
+    if "storage" in category or "organis" in category or "organizer" in category or "garage" in category or "closet" in category:
+        return "Storage"
+    if "outdoor" in category or "picnic" in category:
+        return "Outdoor"
+    if "sofa" in category or "armchair" in category or "living" in category:
+        return "Living Room"
+    if "bed" in category or "mattress" in category or "wardrobe" in category or "bedroom" in category:
+        return "Bedroom"
+    if "light" in category or "lamp" in category:
+        return "Lighting"
+    if "decor" in category or "mirror" in category:
+        return "Decor"
+    return "Other"
+csv["display_category"] = csv["main_category"].apply(display_category)
+
+def get_categories():
+    return sorted(csv["display_category"].dropna().unique())
+
+def get_catalog_items(page=1, limit=50, country=None, category=None, search=None):
+    catalog = csv
+    if category:
+        catalog = catalog[catalog["display_category"] == category]
+    if search:
+        catalog = catalog[catalog["product_name"].str.contains(search, case=False, na=False)]
+    if country:
+        catalog = catalog[catalog["country"] == country]
+    else:
+        eng = ["USA", "UK", "Canada", "Australia", "New_Zealand"]
+        catalog = pd.concat([
+            catalog[catalog["country"].isin(eng)],
+            catalog[~catalog["country"].isin(eng)]
+        ])
+
+    grouped = catalog.drop_duplicates(subset="product_id", keep="first")
+    grouped = grouped.sort_values("product_name").reset_index(drop=True)
+    total = len(grouped)
+    start = (page-1) * limit
+    grouped = grouped[start:(start + limit)]
+    return grouped.to_dict(orient="records"), total
+# ===================================================
+
+
 @app.route("/", methods=["GET", "POST"])
 def homepage():
   if not 'u_rowid' in session:
@@ -149,6 +226,71 @@ def register():
             return redirect("/login")
     return render_template("register.html")
 
+@app.route('/logout', methods=["GET", "POST"])
+def logout():
+    session.pop("u_rowid", None)
+    return redirect("/login")
+
+
+@app.route('/profile', methods=["GET", "POST"])
+def profileDefault():
+    if not 'u_rowid' in session:
+        return redirect("/login")
+    return redirect(f"/profile/{session['u_rowid'][0]}")
+
+@app.route('/profile/<u_rowid>', methods=["GET", "POST"]) # makes u_rowid a variable that is passed to the function
+def profile(u_rowid):
+    if not 'u_rowid' in session:
+        return redirect("/login")
+    u_data = fetch('user_base', "ROWID=?", 'username, saved', (u_rowid,))[0]
+
+    return render_template("profile.html",
+        username=u_data[0])
+
+
+@app.route("/catalog")
+def catalog():
+    countries = get_countries()
+    categories = get_categories()
+    selected_country = request.args.get("country", "")
+    selected_category = request.args.get("category", "")
+    search = request.args.get("search", "")
+    page = int(request.args.get("page", 1))
+    limit = 50;
+
+    items, total = get_catalog_items(
+        page=page,
+        limit=limit,
+        country=selected_country or None,
+        category=selected_category or None,
+        search=search or None
+    )
+    return render_template(
+        "catalog.html",
+        items=items,
+        countries=countries,
+        categories=categories,
+        selected_country=selected_country,
+        selected_category=selected_category,
+        search=search,
+        page=page,
+        has_prev=page > 1,
+        has_next=page*limit < total,
+        total=total
+    )
+
+@app.route("/product/<product_id>")
+def product_detail(product_id):
+    product_rows = csv[csv["product_id"].astype(str) == product_id]
+    product_rows = product_rows.sort_values("country")
+    product_name = product_rows["product_name"].values[0]
+
+    return render_template(
+        "product.html",
+        items=product_rows.to_dict(orient="records"),
+        product_id=product_id,
+        product_name=product_name
+    )
 
 @app.route("/demo_graph")
 def demo_graph():
@@ -223,7 +365,7 @@ def create_user(username, password):
     list = [username[0] for username in c.fetchall()]
     if not username in list:
         # creates user in table
-        c.execute("INSERT INTO user_base VALUES (?, ?, ?)",(username, password, ""))
+        c.execute("INSERT INTO user_base VALUES (?, ?, ?, ?)",(username, password, "", ""))
 
         # set path
         c.execute("SELECT rowid FROM user_base WHERE username=?", (username,))
