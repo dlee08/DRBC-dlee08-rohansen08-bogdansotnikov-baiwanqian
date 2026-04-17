@@ -93,54 +93,6 @@ def get_conversion_rates(base_currency):
 def get_countries():
   return sorted(csv["country"].dropna().astype(str).unique().tolist())
 
-def get_categories():
-    return sorted(csv["display_category"].dropna().unique())
-
-def get_catalog_items(page=1, limit=50, country=None, category=None, search=None):
-    catalog = csv
-    if category:
-        catalog = catalog[catalog["display_category"] == category]
-    if search:
-        catalog = catalog[catalog["product_name"].str.contains(search, case=False, na=False)]
-    if country:
-        catalog = catalog[catalog["country"] == country]
-    else:
-        eng = ["USA", "UK", "Canada", "Australia", "New_Zealand"]
-        catalog = pd.concat([
-            catalog[catalog["country"].isin(eng)],
-            catalog[~catalog["country"].isin(eng)]
-        ])
-
-    grouped = catalog.drop_duplicates(subset="product_id", keep="first")
-    grouped = grouped.sort_values("product_name").reset_index(drop=True)
-    total = len(grouped)
-    start = (page-1) * limit
-    grouped = grouped[start:(start + limit)]
-    return grouped.to_dict(orient="records"), total
-
-def display_category(raw):
-    if not raw:
-        return "Other"
-    category = str(raw).strip().lower()
-    if "bathroom" in category:
-        return "Bathroom"
-    if "kitchen" in category or "cookware" in category or "tableware" in category or "dishwash" in category:
-        return "Kitchen & Dining"
-    if "storage" in category or "organis" in category or "organizer" in category or "garage" in category or "closet" in category:
-        return "Storage"
-    if "outdoor" in category or "picnic" in category:
-        return "Outdoor"
-    if "sofa" in category or "armchair" in category or "living" in category:
-        return "Living Room"
-    if "bed" in category or "mattress" in category or "wardrobe" in category or "bedroom" in category:
-        return "Bedroom"
-    if "light" in category or "lamp" in category:
-        return "Lighting"
-    if "decor" in category or "mirror" in category:
-        return "Decor"
-    return "Other"
-csv["display_category"] = csv["main_category"].apply(display_category)
-
 def convert_price(amount, source_currency, target_currency):
   if source_currency == target_currency:
     return amount
@@ -183,6 +135,57 @@ def build_choropleth_data(product_type):
   )
   grouped["price"] = grouped["price"].round(2)
   return grouped.to_dict(orient="records")
+
+
+# ================= Catalog Helpers ===================
+def display_category(raw):
+    if not raw:
+        return "Other"
+    category = str(raw).strip().lower()
+    if "bathroom" in category:
+        return "Bathroom"
+    if "kitchen" in category or "cookware" in category or "tableware" in category or "dishwash" in category:
+        return "Kitchen & Dining"
+    if "storage" in category or "organis" in category or "organizer" in category or "garage" in category or "closet" in category:
+        return "Storage"
+    if "outdoor" in category or "picnic" in category:
+        return "Outdoor"
+    if "sofa" in category or "armchair" in category or "living" in category:
+        return "Living Room"
+    if "bed" in category or "mattress" in category or "wardrobe" in category or "bedroom" in category:
+        return "Bedroom"
+    if "light" in category or "lamp" in category:
+        return "Lighting"
+    if "decor" in category or "mirror" in category:
+        return "Decor"
+    return "Other"
+csv["display_category"] = csv["main_category"].apply(display_category)
+
+def get_categories():
+    return sorted(csv["display_category"].dropna().unique())
+
+def get_catalog_items(page=1, limit=50, country=None, category=None, search=None):
+    catalog = csv
+    if category:
+        catalog = catalog[catalog["display_category"] == category]
+    if search:
+        catalog = catalog[catalog["product_name"].str.contains(search, case=False, na=False)]
+    if country:
+        catalog = catalog[catalog["country"] == country]
+    else:
+        eng = ["USA", "UK", "Canada", "Australia", "New_Zealand"]
+        catalog = pd.concat([
+            catalog[catalog["country"].isin(eng)],
+            catalog[~catalog["country"].isin(eng)]
+        ])
+
+    grouped = catalog.drop_duplicates(subset="product_id", keep="first")
+    grouped = grouped.sort_values("product_name").reset_index(drop=True)
+    total = len(grouped)
+    start = (page-1) * limit
+    grouped = grouped[start:(start + limit)]
+    return grouped.to_dict(orient="records"), total
+# ===================================================
 
 
 @app.route("/", methods=["GET", "POST"])
