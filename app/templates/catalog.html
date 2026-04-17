@@ -9,62 +9,64 @@
 
   <body class="bg-primary-subtle">
     <div class="container py-4">
-    <h1 class="mb-2">IKEAlyzer Catalog</h1>
-    <p class="mb-4">Browse IKEA items across countries.</p>
+      <h1 class="mb-2">IKEAlyzer Catalog</h1>
+      <p class="mb-4">Browse IKEA items across countries.</p>
 
-    <form method="GET" action="/catalog" class="row g-3 mb-4">
-    <div class="col-md-4">
-      <input type="text" name="search" class="form-control" placeholder="Search product name" value="{{ search }}">
-    </div>
-
-    <div class="col-md-3">
-      <select name="country" class="form-select">
-        <option value="">All countries</option>
-        {% for country in countries %}
-        <option value="{{ country }}" {% if country == selected_country %}selected{% endif %}> {{ country }} </option>
-        {% endfor %}
-      </select>
-    </div>
-
-    <div class="col-md-3">
-      <select name="category" class="form-select">
-        <option value="">All categories</option>
-        {% for category in categories %}
-        <option value="{{ category }}" {% if category == selected_category %}selected{% endif %}> {{ category.replace("-", " ").replace("_", " ").title() }} </option>
-        {% endfor %}
-      </select>
-    </div>
-
-    <div class="col-md-2">
-      <button type="submit" class="btn btn-primary w-100">Filter</button>
-    </div>
-  </form>
-
-  <div class="mb-3">
-    <strong>{{ items|length }}</strong> item(s) shown
-  </div>
-
-  <div class="row g-4">
-    {% for item in items %}
-    <div class="col-md-6 col-lg-4">
-      <div class="card h-100 shadow-sm">
-        <div class="bg-light d-flex align-items-center justify-content-center" style="height: 180px;">
+      <form method="GET" action="/catalog" class="row g-3 mb-4">
+        <div class="col-md-4">
+          <input type="text" name="search" class="form-control" placeholder="Search product name" value="{{ search }}">
         </div>
 
-        <div class="card-body">
-          <h5 class="card-title">{{ item.product_name }}</h5>
-          <p class="card-text mb-1"><strong>Type:</strong> {{ item.product_type }}</p>
-          <p class="card-text mb-1"><strong>Category:</strong> {{ item.main_category.replace("-", " ").replace("_", " ").title() }}</p>
-          <p class="card-text mb-1"><strong>Country:</strong> {{ item.country }}</p>
-          <p class="card-text mb-1"><strong>Price:</strong> {{ item.price }} {{ item.currency }}</p>
-          <p class="card-text mb-1"><strong>Rating:</strong> {{ item.product_rating }}</p>
-          <p class="card-text mb-3"><strong>Reviews:</strong> {{ item.product_rating_count }}</p>
-
-          <a href="{{ item.url }}" target="_blank" class="btn btn-outline-primary btn-sm">View on IKEA</a>
+        <div class="col-md-3">
+          <select name="country" class="form-select">
+            <option value="">All countries</option>
+            {% for country in countries %}
+            <option value="{{ country }}" {% if country == selected_country %}selected{% endif %}> {{ country }} </option>
+            {% endfor %}
+          </select>
         </div>
+
+        <div class="col-md-3">
+          <select name="category" class="form-select">
+            <option value="">All categories</option>
+            {% for category in categories %}
+            <option value="{{ category }}" {% if category == selected_category %}selected{% endif %}>{{ category }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-primary w-100">Filter</button>
+        </div>
+      </form>
+
+      <div class="mb-3">
+        <strong>{{ items|length }}</strong> item(s) shown
       </div>
-    </div>
-    {% endfor %}
-  </body>
 
+      <div class="row g-4">
+        {% for item in items %}
+        <div class="col-md-6 col-lg-4">
+          <div class="card h-100 shadow-sm">
+            <div class="bg-light d-flex align-items-center justify-content-center" style="height: 180px;">
+            </div>
+
+            <div class="card-body">
+              <h5 class="card-title">{{ item.product_name }}</h5>
+              <p class="card-text mb-1"><strong>Type:</strong> {{ item.product_type }}</p>
+              <p class="card-text mb-1"><strong>Category:</strong> {{ item.display_category }}</p>
+              <!-- <p class="card-text mb-1"><strong>Country:</strong> {{ item.country }}</p>
+              <p class="card-text mb-1"><strong>Price:</strong> {{ item.price }} {{ item.currency }}</p> -->
+              <p class="card-text mb-1"><strong>Rating:</strong> {{ item.product_rating }}</p>
+              <p class="card-text mb-3"><strong>Reviews:</strong> {{ item.product_rating_count }}</p>
+
+              <a href="{{ item.url }}" target="_blank" class="btn btn-outline-primary btn-sm">View on IKEA</a>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+    </div>
+  </body>
 </html>

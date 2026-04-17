@@ -93,20 +93,49 @@ def get_conversion_rates(base_currency):
 def get_countries():
   return sorted(csv["country"].dropna().astype(str).unique().tolist())
 
-def get_main_categories():
-  return sorted(csv["main_category"].dropna().astype(str).unique().tolist())
+def get_categories():
+    return sorted(csv["display_category"].dropna().unique())
 
 def get_catalog_items(limit=24, country=None, category=None, search=None):
     catalog = csv
-    if country:
-        catalog = catalog[catalog["country"] == country]
     if category:
-        catalog = catalog[catalog["main_category"] == category]
+        catalog = catalog[catalog["display_category"] == category]
     if search:
         catalog = catalog[catalog["product_name"].str.contains(search, case=False, na=False)]
-    catalog = catalog.sort_values("product_name").head(limit)
-    return catalog.to_dict(orient="records")
+    if country:
+        catalog = catalog[catalog["country"] == country]
+    else:
+        eng = ["USA", "UK", "Canada", "Australia", "New_Zealand"]
+        catalog = pd.concat([
+            catalog[catalog["country"].isin(eng)],
+            catalog[~catalog["country"].isin(eng)]
+        ])
+    grouped = catalog.drop_duplicates(subset="product_id", keep="first")
+    grouped = grouped.sort_values("product_name").head(limit)
+    return grouped.to_dict(orient="records")
 
+def display_category(raw):
+    if not raw:
+        return "Other"
+    category = str(raw).strip().lower()
+    if "bathroom" in category:
+        return "Bathroom"
+    if "kitchen" in category or "cookware" in category or "tableware" in category or "dishwash" in category:
+        return "Kitchen & Dining"
+    if "storage" in category or "organis" in category or "organizer" in category or "garage" in category or "closet" in category:
+        return "Storage"
+    if "outdoor" in category or "picnic" in category:
+        return "Outdoor"
+    if "sofa" in category or "armchair" in category or "living" in category:
+        return "Living Room"
+    if "bed" in category or "mattress" in category or "wardrobe" in category or "bedroom" in category:
+        return "Bedroom"
+    if "light" in category or "lamp" in category:
+        return "Lighting"
+    if "decor" in category or "mirror" in category:
+        return "Decor"
+    return "Other"
+csv["display_category"] = csv["main_category"].apply(display_category)
 
 def convert_price(amount, source_currency, target_currency):
   if source_currency == target_currency:
@@ -212,11 +241,10 @@ def profile(u_rowid):
         username=u_data[0])
 
 
-
 @app.route("/catalog")
 def catalog():
     countries = get_countries()
-    categories = get_main_categories()
+    categories = get_categories()
     selected_country = request.args.get("country", "")
     selected_category = request.args.get("category", "")
     search = request.args.get("search", "")
@@ -234,9 +262,19 @@ def catalog():
         categories=categories,
         selected_country=selected_country,
         selected_category=selected_category,
-        search=search
+        search=search,
     )
 
+@app.route("/product/<product_id>")
+def product_detail(product_id):
+    product_rows = csv[csv["product_id"] == product_id]
+    product_rows = product_rows.sort_values("country")
+
+    return render_template(
+        "product.html",
+        items=product_rows.to_dict(orient="records"),
+        product_id=product_id
+    )
 
 @app.route("/demo_graph")
 def demo_graph():
