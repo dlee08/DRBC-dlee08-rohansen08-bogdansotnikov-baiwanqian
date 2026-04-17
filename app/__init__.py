@@ -267,13 +267,15 @@ def catalog():
 
 @app.route("/product/<product_id>")
 def product_detail(product_id):
-    product_rows = csv[csv["product_id"] == product_id]
+    product_rows = csv[csv["product_id"].astype(str) == product_id]
     product_rows = product_rows.sort_values("country")
+    product_name = product_rows["product_name"].values[0]
 
     return render_template(
         "product.html",
         items=product_rows.to_dict(orient="records"),
-        product_id=product_id
+        product_id=product_id,
+        product_name=product_name
     )
 
 @app.route("/demo_graph")
