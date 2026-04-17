@@ -34,8 +34,9 @@ rohanS -- 2026-04-14 01:39
 davidL -- 2026-04-14 11:30
 - fixed merge conflict with pre-break work on API integration
 
-christineC -- 2026-04-15 8:00
-- Working on d3 choropleth map
+christineC -- 2026-04-15 08:00
+- Started working on D3 choropleth map
+- Set up basic HTML template, added Flask route, and helper functions
 
 rohanS -- 2026-04-15 11:17
 - fixed csv loading
@@ -44,10 +45,19 @@ rohanS -- 2026-04-15 11:17
 bogdanS -- 2026-04-15 11:34
 - login feature
 
+christineC -- 2026-04-16 11:30
+- Set up SVG, map projection, color scale for choropleth map
+
 davidL -- 2026-04-16 00:05
 - fixed merge conflicts with yesterday's work (api integration with exchange currency plugged into y axis of product vs price demo graph)
 
-bogdanS -- 2024-04-16 11:45
+bogdanS -- 2026-04-16 11:45
 - Added logging out
 - Added registering
 - Added profile pages
+
+christineC -- 2026-04-17 04:00
+- Implemented basic catalog page with cleaned-up categories and basic filtering/search function
+- Added multiple pages to catalog
+- Removed duplicate products from basic catalog display
+- Created product pages for each item featuring basic comparisons
