@@ -96,7 +96,7 @@ def get_countries():
 def get_categories():
     return sorted(csv["display_category"].dropna().unique())
 
-def get_catalog_items(limit=24, country=None, category=None, search=None):
+def get_catalog_items(page=1, limit=50, country=None, category=None, search=None):
     catalog = csv
     if category:
         catalog = catalog[catalog["display_category"] == category]
@@ -110,9 +110,13 @@ def get_catalog_items(limit=24, country=None, category=None, search=None):
             catalog[catalog["country"].isin(eng)],
             catalog[~catalog["country"].isin(eng)]
         ])
+
     grouped = catalog.drop_duplicates(subset="product_id", keep="first")
-    grouped = grouped.sort_values("product_name").head(limit)
-    return grouped.to_dict(orient="records")
+    grouped = grouped.sort_values("product_name").reset_index(drop=True)
+    total = len(grouped)
+    start = (page-1) * limit
+    grouped = grouped[start:(start + limit)]
+    return grouped.to_dict(orient="records"), total
 
 def display_category(raw):
     if not raw:
@@ -248,9 +252,12 @@ def catalog():
     selected_country = request.args.get("country", "")
     selected_category = request.args.get("category", "")
     search = request.args.get("search", "")
+    page = int(request.args.get("page", 1))
+    limit = 50;
 
-    items = get_catalog_items(
-        limit=24,
+    items, total = get_catalog_items(
+        page=page,
+        limit=limit,
         country=selected_country or None,
         category=selected_category or None,
         search=search or None
@@ -263,6 +270,10 @@ def catalog():
         selected_country=selected_country,
         selected_category=selected_category,
         search=search,
+        page=page,
+        has_prev=page > 1,
+        has_next=page*limit < total,
+        total=total
     )
 
 @app.route("/product/<product_id>")

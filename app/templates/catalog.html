@@ -77,6 +77,26 @@
         {% endfor %}
       </div>
 
+      <div class="d-flex justify-content-between mt-4">
+        <div>
+          {% if has_prev %}
+          <a href="/catalog?search={{ search }}&country={{ selected_country }}&category={{ selected_category }}&page={{ page - 1 }}" class="btn btn-outline-secondary">
+            Previous
+          </a>
+          {% endif %}
+        </div>
+        <div>
+          Page {{ page }}
+        </div>
+        <div>
+          {% if has_next %}
+          <a href="/catalog?search={{ search }}&country={{ selected_country }}&category={{ selected_category }}&page={{ page + 1 }}" class="btn btn-outline-secondary">
+            Next
+          </a>
+          {% endif %}
+        </div>
+      </div>
+
     </div>
   </body>
 </html>
