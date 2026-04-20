@@ -15,11 +15,12 @@ KEY_PATH = Path(__file__).resolve().parent / "keys" / "key_exchangerate-api.txt"
 DB_PATH = Path(__file__).resolve().parent / "data.db"
 MAX_PRODUCT_TYPES = 30
 DEFAULT_TARGET_CURRENCY = "USD"
-CATALOG_SCHEMA_VERSION = 2
+CATALOG_SCHEMA_VERSION = 3
 CATALOG_USECOLS = [
     "product_id",
     "product_name",
     "product_type",
+    "product_description",
     "main_category",
     "country",
     "price",
@@ -79,10 +80,34 @@ def load_catalog():
 @lru_cache(maxsize=1)
 def get_catalog_df():
     return catalog_query_df(
-        "SELECT product_id, product_name, product_type, main_category, country, price, currency, "
+        "SELECT product_id, product_name, product_type, product_description, main_category, country, price, currency, "
         "product_rating, product_rating_count, url, display_category "
         "FROM catalog_items"
     )
+
+def clean_dropdown_description(product_name, product_description):
+    if product_description is None:
+        return ""
+    description = str(product_description).strip()
+    if not description:
+        return ""
+    product_name_text = str(product_name).strip()
+    if description.lower().startswith(product_name_text.lower()):
+        description = description[len(product_name_text):].lstrip(" ,.-:")
+    return description.strip()
+
+def choose_group_description(product_name, product_rows):
+    english_rows = product_rows[product_rows["country"].isin(["USA", "UK", "Canada", "Australia", "New_Zealand", "Ireland"])]
+    candidate_rows = english_rows if not english_rows.empty else product_rows
+    descriptions = []
+    for value in candidate_rows["product_description"].dropna().tolist():
+        cleaned = clean_dropdown_description(product_name, value)
+        if cleaned:
+            descriptions.append(cleaned)
+    if not descriptions:
+        return ""
+    descriptions = sorted(set(descriptions), key=lambda description: (len(description), description.lower()))
+    return descriptions[0]
 
 
 def load_exchange_rate_api_key():
@@ -133,20 +158,26 @@ def get_product_types():
 def build_product_groups(catalog):
     catalog["product_id"] = catalog["product_id"].astype(str)
     catalog["product_group_id"] = catalog["product_name"].apply(lambda product_name: make_group_id(product_name, "name"))
+    group_rows = []
+    for product_name, product_rows in catalog.groupby("product_name", sort=False):
+        group_id = make_group_id(product_name, "name")
+        description = choose_group_description(product_name, product_rows)
+        label = f"{product_name} - {description}" if description else product_name
+        group_rows.append({
+            "group_id": group_id,
+            "product_name": product_name,
+            "label": label,
+            "product_description": description,
+            "countries_count": int(product_rows["country"].nunique()),
+        })
 
-    product_groups = (
-        catalog.groupby("product_name", as_index=False)
-        .agg(countries_count=("country", "nunique"))
-        .sort_values("product_name")
-    )
-    product_groups["group_id"] = product_groups["product_name"].apply(lambda product_name: make_group_id(product_name, "name"))
-    product_groups["label"] = product_groups["product_name"]
-
+    product_groups = pd.DataFrame(group_rows).sort_values("product_name")
     group_lookup = {
         row["group_id"]: {
             "group_id": row["group_id"],
             "product_name": row["product_name"],
             "label": row["label"],
+            "product_description": row["product_description"],
             "countries_count": int(row["countries_count"]),
         }
         for row in product_groups.to_dict(orient="records")
@@ -206,6 +237,7 @@ def rebuild_catalog_db():
             "product_id TEXT NOT NULL, "
             "product_name TEXT, "
             "product_type TEXT, "
+            "product_description TEXT, "
             "main_category TEXT, "
             "country TEXT, "
             "price REAL, "
@@ -220,6 +252,7 @@ def rebuild_catalog_db():
             "group_id TEXT PRIMARY KEY, "
             "product_name TEXT NOT NULL, "
             "label TEXT NOT NULL, "
+            "product_description TEXT, "
             "countries_count INTEGER NOT NULL)"
         )
         db.execute(
@@ -231,14 +264,15 @@ def rebuild_catalog_db():
             "currency TEXT NOT NULL)"
         )
         db.executemany(
-            "INSERT INTO catalog_items(product_id, product_name, product_type, main_category, country, price, currency, "
+            "INSERT INTO catalog_items(product_id, product_name, product_type, product_description, main_category, country, price, currency, "
             "product_rating, product_rating_count, url, display_category) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 (
                     row["product_id"],
                     db_value(row["product_name"]),
                     db_value(row["product_type"]),
+                    db_value(row["product_description"]),
                     db_value(row["main_category"]),
                     db_value(row["country"]),
                     db_value(row["price"]),
@@ -252,13 +286,14 @@ def rebuild_catalog_db():
             ]
         )
         db.executemany(
-            "INSERT INTO product_groups(group_id, product_name, label, countries_count) "
-            "VALUES (?, ?, ?, ?)",
+            "INSERT INTO product_groups(group_id, product_name, label, product_description, countries_count) "
+            "VALUES (?, ?, ?, ?, ?)",
             [
                 (
                     row["group_id"],
                     row["product_name"],
                     row["label"],
+                    db_value(row["product_description"]),
                     int(row["countries_count"]),
                 )
                 for row in product_group_rows.to_dict(orient="records")
@@ -306,7 +341,7 @@ ensure_catalog_db()
 def get_product_options():
     with get_db_connection() as db:
         rows = db.execute(
-            "SELECT group_id, product_name, label, countries_count "
+            "SELECT group_id, product_name, label, product_description, countries_count "
             "FROM product_groups ORDER BY label"
         ).fetchall()
     return [
@@ -314,7 +349,8 @@ def get_product_options():
             "group_id": row[0],
             "product_name": row[1],
             "label": row[2],
-            "countries_count": row[3],
+            "product_description": row[3],
+            "countries_count": row[4],
         }
         for row in rows
     ]
