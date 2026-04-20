@@ -82,3 +82,8 @@ rohanS -- 2026-04-20 02:22
 - made UI more consistent
 - added in working search feature
 - random featured item
+
+christineC -- 2026-04-20 4:50
+- Complete choropleth map w/ legend and tooltip
+- Added choropleth map to product page
+- Removed old product page
