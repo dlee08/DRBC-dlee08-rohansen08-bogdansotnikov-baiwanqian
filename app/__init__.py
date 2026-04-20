@@ -1,8 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
 import hashlib
-import re
-import unicodedata
 
 import sqlite3
 import requests
@@ -17,8 +15,7 @@ KEY_PATH = Path(__file__).resolve().parent / "keys" / "key_exchangerate-api.txt"
 DB_PATH = Path(__file__).resolve().parent / "data.db"
 MAX_PRODUCT_TYPES = 30
 DEFAULT_TARGET_CURRENCY = "USD"
-ENGLISH_PRIORITY_COUNTRIES = ["USA", "UK", "Canada", "Australia", "New_Zealand", "Ireland", "Singapore", "India"]
-CATALOG_SCHEMA_VERSION = 1
+CATALOG_SCHEMA_VERSION = 2
 CATALOG_USECOLS = [
     "product_id",
     "product_name",
@@ -133,124 +130,27 @@ def get_product_types():
     catalog = load_catalog()
     return sorted(catalog["product_type"].dropna().astype(str).unique().tolist())
 
-def normalize_slug_part(value):
-    ascii_value = unicodedata.normalize("NFKD", str(value)).encode("ascii", "ignore").decode("ascii")
-    ascii_value = ascii_value.lower()
-    ascii_value = re.sub(r"[^a-z0-9]+", "-", ascii_value)
-    return ascii_value.strip("-")
-
-def get_url_slug(url):
-    if not isinstance(url, str) or "/p/" not in url:
-        return ""
-    slug = url.split("/p/", 1)[1].rsplit("/", 1)[0]
-    slug = re.sub(r"-s\d+$", "", slug)
-    return normalize_slug_part(slug)
-
-def get_descriptor_slug(product_name, url):
-    url_slug = get_url_slug(url)
-    if not url_slug:
-        return ""
-    name_slug = normalize_slug_part(product_name)
-    if url_slug == name_slug:
-        return ""
-    if url_slug.startswith(f"{name_slug}-"):
-        descriptor_slug = url_slug[len(name_slug) + 1:]
-    else:
-        descriptor_slug = url_slug
-    descriptor_slug = re.sub(r"-\d+$", "", descriptor_slug)
-    return descriptor_slug
-
-def id_similarity_score(left_id, right_id):
-    left = str(left_id)
-    right = str(right_id)
-    prefix = 0
-    for left_char, right_char in zip(left, right):
-        if left_char != right_char:
-            break
-        prefix += 1
-
-    suffix = 0
-    for left_char, right_char in zip(left[::-1], right[::-1]):
-        if left_char != right_char:
-            break
-        suffix += 1
-
-    shared_chars = len(set(left) & set(right))
-    return max(prefix, suffix) * 3 + shared_chars
-
-def descriptor_to_label(descriptor_slug):
-    if not descriptor_slug:
-        return ""
-    return descriptor_slug.replace("-", " ").title()
-
 def build_product_groups(catalog):
     catalog["product_id"] = catalog["product_id"].astype(str)
-    catalog["descriptor_slug"] = [
-        get_descriptor_slug(product_name, url)
-        for product_name, url in zip(catalog["product_name"], catalog["url"])
-    ]
+    catalog["product_group_id"] = catalog["product_name"].apply(lambda product_name: make_group_id(product_name, "name"))
 
-    group_lookup = {}
-    id_assignments = []
+    product_groups = (
+        catalog.groupby("product_name", as_index=False)
+        .agg(countries_count=("country", "nunique"))
+        .sort_values("product_name")
+    )
+    product_groups["group_id"] = product_groups["product_name"].apply(lambda product_name: make_group_id(product_name, "name"))
+    product_groups["label"] = product_groups["product_name"]
 
-    for product_name, product_rows in catalog.groupby("product_name", sort=False):
-        english_rows = product_rows[product_rows["country"].isin(ENGLISH_PRIORITY_COUNTRIES)]
-        anchor_rows = english_rows if not english_rows.empty else product_rows
-
-        anchor_groups = {}
-        for row in anchor_rows[["product_id", "descriptor_slug"]].drop_duplicates().itertuples(index=False):
-            anchor_key = row.descriptor_slug or row.product_id
-            anchor_groups.setdefault(anchor_key, {
-                "product_name": product_name,
-                "descriptor_slug": row.descriptor_slug,
-                "anchor_ids": set(),
-            })
-            anchor_groups[anchor_key]["anchor_ids"].add(row.product_id)
-
-        id_to_anchor = {}
-        for product_id in product_rows["product_id"].drop_duplicates():
-            matching_anchor = next(
-                (anchor_key for anchor_key, anchor_group in anchor_groups.items() if product_id in anchor_group["anchor_ids"]),
-                None
-            )
-            if matching_anchor is None:
-                best_anchor_key = None
-                best_score = -1
-                for anchor_key, anchor_group in anchor_groups.items():
-                    score = max(
-                        id_similarity_score(product_id, anchor_id)
-                        for anchor_id in anchor_group["anchor_ids"]
-                    )
-                    if score > best_score:
-                        best_score = score
-                        best_anchor_key = anchor_key
-                matching_anchor = best_anchor_key
-            id_to_anchor[product_id] = matching_anchor
-
-        for anchor_key, anchor_group in anchor_groups.items():
-            descriptor_slug = anchor_group["descriptor_slug"]
-            group_id = make_group_id(product_name, anchor_key)
-            descriptor_label = descriptor_to_label(descriptor_slug)
-            if descriptor_label:
-                label = f"{product_name} ({descriptor_label})"
-            else:
-                label = product_name
-
-            group_lookup[group_id] = {
-                "group_id": group_id,
-                "product_name": product_name,
-                "label": label,
-                "descriptor_slug": descriptor_slug,
-            }
-        for product_id, anchor_key in id_to_anchor.items():
-            id_assignments.append({
-                "product_name": product_name,
-                "product_id": product_id,
-                "product_group_id": make_group_id(product_name, anchor_key),
-            })
-
-    assignment_frame = pd.DataFrame(id_assignments)
-    catalog = catalog.merge(assignment_frame, on=["product_name", "product_id"], how="left")
+    group_lookup = {
+        row["group_id"]: {
+            "group_id": row["group_id"],
+            "product_name": row["product_name"],
+            "label": row["label"],
+            "countries_count": int(row["countries_count"]),
+        }
+        for row in product_groups.to_dict(orient="records")
+    }
     return catalog, group_lookup
 
 def init_user_db():
@@ -320,7 +220,6 @@ def rebuild_catalog_db():
             "group_id TEXT PRIMARY KEY, "
             "product_name TEXT NOT NULL, "
             "label TEXT NOT NULL, "
-            "descriptor_slug TEXT, "
             "countries_count INTEGER NOT NULL)"
         )
         db.execute(
@@ -353,14 +252,13 @@ def rebuild_catalog_db():
             ]
         )
         db.executemany(
-            "INSERT INTO product_groups(group_id, product_name, label, descriptor_slug, countries_count) "
-            "VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO product_groups(group_id, product_name, label, countries_count) "
+            "VALUES (?, ?, ?, ?)",
             [
                 (
                     row["group_id"],
                     row["product_name"],
                     row["label"],
-                    db_value(row["descriptor_slug"]),
                     int(row["countries_count"]),
                 )
                 for row in product_group_rows.to_dict(orient="records")
@@ -408,7 +306,7 @@ ensure_catalog_db()
 def get_product_options():
     with get_db_connection() as db:
         rows = db.execute(
-            "SELECT group_id, product_name, label, descriptor_slug, countries_count "
+            "SELECT group_id, product_name, label, countries_count "
             "FROM product_groups ORDER BY label"
         ).fetchall()
     return [
@@ -416,8 +314,7 @@ def get_product_options():
             "group_id": row[0],
             "product_name": row[1],
             "label": row[2],
-            "descriptor_slug": row[3],
-            "countries_count": row[4],
+            "countries_count": row[3],
         }
         for row in rows
     ]

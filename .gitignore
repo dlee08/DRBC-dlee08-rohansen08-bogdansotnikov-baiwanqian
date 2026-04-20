@@ -3,4 +3,4 @@ __pycache__/
 app/venv/
 app/data/*.csv
 app/keys/key_exchangerate-api.txt
-app/*.db
+*.db
