@@ -411,7 +411,7 @@ def get_product_summary(product_group_id):
 
     with get_db_connection() as db:
         row = db.execute(
-            "SELECT product_name, product_description, product_type, display_category "
+            "SELECT product_name, product_description, product_type, display_category, url "
             "FROM catalog_items WHERE product_name = ? "
             "ORDER BY CASE WHEN product_description IS NULL OR TRIM(product_description) = '' THEN 1 ELSE 0 END, country "
             "LIMIT 1",
@@ -425,6 +425,7 @@ def get_product_summary(product_group_id):
         "product_description": row[1] or "N/A",
         "product_type": row[2] or "N/A",
         "display_category": row[3] or "N/A",
+        "url": row[4] or "N/A",
     }
 
 def parse_saved_items(saved_value):

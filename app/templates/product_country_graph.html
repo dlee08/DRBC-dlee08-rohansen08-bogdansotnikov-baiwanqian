@@ -24,7 +24,8 @@
           <p class="mb-2"><strong>Name:</strong> {{ product_summary.product_name }}</p>
           <p class="mb-2"><strong>Description:</strong> {{ product_summary.product_description }}</p>
           <p class="mb-2"><strong>Type:</strong> {{ product_summary.product_type }}</p>
-          <p class="mb-0"><strong>Category:</strong> {{ product_summary.display_category }}</p>
+          <p class="mb-2"><strong>Category:</strong> {{ product_summary.display_category }}</p>
+          <a href="{{ product_summary.url }}" target="_blank" class="btn btn-outline-primary btn-sm">View on IKEA</a>
         </div>
       </div>
 
