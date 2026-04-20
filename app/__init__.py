@@ -365,6 +365,16 @@ def get_product_label(product_group_id):
         return None
     return row[0]
 
+def get_product_name(product_group_id):
+    with get_db_connection() as db:
+        row = db.execute(
+            "SELECT product_name FROM product_groups WHERE group_id = ?",
+            (product_group_id,)
+        ).fetchone()
+    if row is None:
+        return None
+    return row[0]
+
 def build_demo_data(country, target_currency):
   catalog = get_catalog_df()
   filtered = catalog[catalog["country"] == country].dropna(subset=["product_type", "price", "currency"]).copy()
@@ -399,32 +409,66 @@ def build_choropleth_data(product_type):
   return grouped.to_dict(orient="records")
 
 def build_product_country_price_data(product_group_id, target_currency):
-  with get_db_connection() as db:
-      rows = db.execute(
-          "SELECT product_group_id, product_name, country, price, currency "
-          "FROM catalog_grouped_rows WHERE product_group_id = ?",
-          (str(product_group_id),)
-      ).fetchall()
-  if not rows:
-      return []
+    with get_db_connection() as db:
+        rows = db.execute(
+            "SELECT product_group_id, product_name, country, price, currency "
+            "FROM catalog_grouped_rows WHERE product_group_id = ?",
+            (str(product_group_id),)
+        ).fetchall()
+    if not rows:
+        return []
 
-  country_totals = {}
-  product_name = rows[0][1]
-  for row in rows:
-      converted_price = round(convert_price(row[3], row[4], target_currency), 2)
-      country_entry = country_totals.setdefault(row[2], {"sum": 0.0, "count": 0})
-      country_entry["sum"] += converted_price
-      country_entry["count"] += 1
+    country_totals = {}
+    product_name = rows[0][1]
+    for row in rows:
+        converted_price = round(convert_price(row[3], row[4], target_currency), 2)
+        country_entry = country_totals.setdefault(row[2], {"sum": 0.0, "count": 0})
+        country_entry["sum"] += converted_price
+        country_entry["count"] += 1
 
-  return [
-      {
-          "product_group_id": str(product_group_id),
-          "product_name": product_name,
-          "country": country,
-          "price": round(values["sum"] / values["count"], 2),
-      }
-      for country, values in sorted(country_totals.items())
-  ]
+    return [
+        {
+            "product_group_id": str(product_group_id),
+            "product_name": product_name,
+            "country": country,
+            "price": round(values["sum"] / values["count"], 2),
+        }
+        for country, values in sorted(country_totals.items())
+    ]
+
+def build_product_country_rating_data(product_group_id):
+    product_name = get_product_name(product_group_id)
+    if not product_name:
+        return []
+
+    with get_db_connection() as db:
+        rows = db.execute(
+            "SELECT country, product_rating "
+            "FROM catalog_items WHERE product_name = ? AND product_rating IS NOT NULL AND product_rating != 'none'",
+            (product_name,)
+        ).fetchall()
+    if not rows:
+        return []
+
+    country_totals = {}
+    for country, rating in rows:
+        try:
+            numeric_rating = float(rating)
+        except (TypeError, ValueError):
+            continue
+        country_entry = country_totals.setdefault(country, {"sum": 0.0, "count": 0})
+        country_entry["sum"] += numeric_rating
+        country_entry["count"] += 1
+
+    return [
+        {
+            "product_group_id": str(product_group_id),
+            "product_name": product_name,
+            "country": country,
+            "rating": round(values["sum"] / values["count"], 2),
+        }
+        for country, values in sorted(country_totals.items())
+    ]
 
 
 # ================= Catalog Helpers ===================
@@ -477,9 +521,10 @@ def product_graph(product_group_id):
     if not 'u_rowid' in session:
         return redirect("/login")
     supported_currencies = get_supported_currencies()
-    chart_data = build_product_country_price_data(product_group_id, DEFAULT_TARGET_CURRENCY)
-    if not chart_data:
+    price_chart_data = build_product_country_price_data(product_group_id, DEFAULT_TARGET_CURRENCY)
+    if not price_chart_data:
         return redirect("/")
+    rating_chart_data = build_product_country_rating_data(product_group_id)
 
     product_label = get_product_label(product_group_id)
     if not product_label:
@@ -489,7 +534,8 @@ def product_graph(product_group_id):
         "product_country_graph.html",
         product_group_id=product_group_id,
         product_label=product_label,
-        chart_data=chart_data,
+        price_chart_data=price_chart_data,
+        rating_chart_data=rating_chart_data,
         currencies=supported_currencies,
         default_currency=DEFAULT_TARGET_CURRENCY
     )
@@ -662,6 +708,17 @@ def product_graph_data(product_group_id):
   return jsonify({
     "product_group_id": product_group_id,
     "target_currency": target_currency,
+    "data": data
+  })
+
+@app.route("/api/product_rating_graph_data/<product_group_id>")
+def product_rating_graph_data(product_group_id):
+  data = build_product_country_rating_data(product_group_id)
+  if not data:
+    return jsonify({"error": "No product rating data found"}), 404
+
+  return jsonify({
+    "product_group_id": product_group_id,
     "data": data
   })
 
