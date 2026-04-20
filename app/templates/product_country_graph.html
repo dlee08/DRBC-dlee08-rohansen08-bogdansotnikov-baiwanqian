@@ -179,21 +179,22 @@
         const normalizedPrices = normalizeMetric(priceRows, "price");
         const normalizedRatings = normalizeMetric(ratingRows, "rating");
 
-        const byCountry = new Map();
+        const priceByCountry = new Map(normalizedPrices.map((row) => [row.country, row]));
+        const ratingByCountry = new Map(normalizedRatings.map((row) => [row.country, row]));
+        const completeCountries = Array.from(priceByCountry.keys())
+          .filter((country) => ratingByCountry.has(country));
+
         normalizedPrices.forEach((row) => {
-          const entry = byCountry.get(row.country) || { country: row.country, priceRelative: 0, ratingRelative: 0 };
-          entry.priceRelative = row.price;
-          byCountry.set(row.country, entry);
-        });
-        normalizedRatings.forEach((row) => {
-          const entry = byCountry.get(row.country) || { country: row.country, priceRelative: 0, ratingRelative: 0 };
-          entry.ratingRelative = row.rating;
-          byCountry.set(row.country, entry);
+          if (!ratingByCountry.has(row.country)) {
+            priceByCountry.delete(row.country);
+          }
         });
 
-        return Array.from(byCountry.values()).map((row) => ({
-          ...row,
-          totalRelative: row.priceRelative + row.ratingRelative
+        return completeCountries.map((country) => ({
+          country,
+          priceRelative: priceByCountry.get(country).price,
+          ratingRelative: ratingByCountry.get(country).rating,
+          totalRelative: priceByCountry.get(country).price + ratingByCountry.get(country).rating
         }));
       }
 

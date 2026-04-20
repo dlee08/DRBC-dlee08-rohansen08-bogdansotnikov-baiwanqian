@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 import hashlib
+from datetime import date
 
 import sqlite3
 import requests
@@ -187,6 +188,19 @@ def build_product_groups(catalog):
 def init_user_db():
     with get_db_connection() as db:
         db.execute("CREATE TABLE IF NOT EXISTS user_base(username TEXT, password TEXT, path TEXT, saved TEXT);")
+        columns = {
+            row[1]
+            for row in db.execute("PRAGMA table_info(user_base)").fetchall()
+        }
+        if "creation_date" not in columns:
+            db.execute("ALTER TABLE user_base ADD COLUMN creation_date TEXT")
+            db.execute(
+                "UPDATE user_base SET creation_date = ? WHERE creation_date IS NULL",
+                (date.today().isoformat(),)
+            )
+        if "bio" not in columns:
+            db.execute("ALTER TABLE user_base ADD COLUMN bio TEXT")
+            db.execute("UPDATE user_base SET bio = '' WHERE bio IS NULL")
 
 def catalog_db_is_fresh():
     if not DB_PATH.exists():
@@ -470,7 +484,6 @@ def build_product_country_rating_data(product_group_id):
         for country, values in sorted(country_totals.items())
     ]
 
-
 # ================= Catalog Helpers ===================
 
 def get_categories():
@@ -492,7 +505,8 @@ def get_catalog_items(page=1, limit=50, country=None, category=None, search=None
             catalog[~catalog["country"].isin(eng)]
         ])
 
-    grouped = catalog.drop_duplicates(subset="product_id", keep="first")
+    grouped = catalog.drop_duplicates(subset="product_name", keep="first").copy()
+    grouped["product_group_id"] = grouped["product_name"].apply(lambda product_name: make_group_id(product_name, "name"))
     grouped = grouped.sort_values("product_name").reset_index(drop=True)
     total = len(grouped)
     start = (page-1) * limit
@@ -588,10 +602,36 @@ def profileDefault():
 def profile(u_rowid):
     if not 'u_rowid' in session:
         return redirect("/login")
-    u_data = fetch('user_base', "ROWID=?", 'username, saved', (u_rowid,))[0]
+    if str(session['u_rowid'][0]) != str(u_rowid):
+        return redirect(f"/profile/{session['u_rowid'][0]}")
+
+    error = ""
+    success = ""
+    if request.method == "POST":
+        old_password = request.form.get("old_password", "")
+        new_password = request.form.get("new_password", "")
+        u_password = fetch('user_base', "ROWID=?", 'password', (u_rowid,))[0][0]
+
+        if old_password != u_password:
+            error = "Old password is incorrect."
+        elif not new_password:
+            error = "New password cannot be empty."
+        else:
+            db = get_db_connection()
+            c = db.cursor()
+            c.execute("UPDATE user_base SET password = ? WHERE ROWID = ?", (new_password, u_rowid))
+            db.commit()
+            db.close()
+            success = "Password updated successfully."
+
+    u_data = fetch('user_base', "ROWID=?", 'username, password, creation_date, bio', (u_rowid,))[0]
     return render_template("profile.html",
         username=u_data[0],
-        saved = u_data[1].split(", "))
+        password=u_data[1],
+        creation_date=u_data[2],
+        bio=u_data[3] or "",
+        error=error,
+        success=success)
 
 
 @app.route("/catalog")
@@ -753,7 +793,10 @@ def create_user(username, password):
     list = [username[0] for username in c.fetchall()]
     if not username in list:
         # creates user in table
-        c.execute("INSERT INTO user_base VALUES (?, ?, ?, ?)",(username, password, "", " "))
+        c.execute(
+            "INSERT INTO user_base(username, password, path, saved, creation_date, bio) VALUES (?, ?, ?, ?, ?, ?)",
+            (username, password, "", " ", date.today().isoformat(), "")
+        )
 
         # set path
         c.execute("SELECT rowid FROM user_base WHERE username=?", (username,))

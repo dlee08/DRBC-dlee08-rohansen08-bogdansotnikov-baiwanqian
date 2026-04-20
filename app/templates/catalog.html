@@ -13,20 +13,11 @@
       <p class="mb-4">Browse IKEA items across countries.</p>
 
       <form method="GET" action="/catalog" class="row g-3 mb-4">
-        <div class="col-md-4">
+        <div class="col-md-6">
           <input type="text" name="search" class="form-control" placeholder="Search product name" value="{{ search }}">
         </div>
 
-        <div class="col-md-3">
-          <select name="country" class="form-select">
-            <option value="">All countries</option>
-            {% for country in countries %}
-            <option value="{{ country }}" {% if country == selected_country %}selected{% endif %}> {{ country }} </option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div class="col-md-3">
+        <div class="col-md-4">
           <select name="category" class="form-select">
             <option value="">All categories</option>
             {% for category in categories %}
@@ -47,29 +38,21 @@
       <div class="row g-4">
         {% for item in items %}
         <div class="col-md-6 col-lg-4">
-          <a href="/product/{{ item.product_id }}" class="text-decoration-none text-dark d-block h-100">
+          <a href="/product_graph/{{ item.product_group_id }}" class="text-decoration-none text-dark d-block h-100">
             <div class="card h-100 shadow-sm">
             <div class="bg-light d-flex align-items-center justify-content-center" style="height: 180px;"></div>
               <div class="card-body">
                 <h5 class="card-title">{{ item.product_name }}</h5>
+                <p class="card-text mb-1"><strong>Product ID:</strong> {{ item.product_id }}</p>
+                <p class="card-text mb-1"><strong>Description:</strong>
+                  {% if item.product_description %}
+                    {{ item.product_description }}
+                  {% else %}
+                    N/A
+                  {% endif %}
+                </p>
                 <p class="card-text mb-1"><strong>Type:</strong> {{ item.product_type }}</p>
                 <p class="card-text mb-1"><strong>Category:</strong> {{ item.display_category }}</p>
-                <!-- <p class="card-text mb-1"><strong>Country:</strong> {{ item.country }}</p>
-                <p class="card-text mb-1"><strong>Price:</strong> {{ item.price }} {{ item.currency }}</p> -->
-                <p class="card-text mb-1"><strong>Rating:</strong>
-                  {% if item.product_rating and item.product_rating != "none" %}
-                    {{ item.product_rating }}
-                  {% else %}
-                    N/A
-                  {% endif %}
-                </p>
-                <p class="card-text mb-3"><strong>Reviews:</strong>
-                  {% if item.product_rating_count and item.product_rating_count != "none" %}
-                    {{ item.product_rating_count }}
-                  {% else %}
-                    N/A
-                  {% endif %}
-                </p>
               </div>
             </div>
           </a>
