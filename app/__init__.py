@@ -245,7 +245,8 @@ def profile(u_rowid):
     u_data = fetch('user_base', "ROWID=?", 'username, saved', (u_rowid,))[0]
 
     return render_template("profile.html",
-        username=u_data[0])
+        username=u_data[0],
+        saved = fetch("user_base", f"ROWID={session['u_rowid'][0]}", "saved"))
 
 
 @app.route("/catalog")
@@ -291,6 +292,20 @@ def product_detail(product_id):
         product_id=product_id,
         product_name=product_name
     )
+
+@app.route("/save/<product_id>", methods=["GET"])
+def cave(product_id):
+    if 'u_rowid' in session:
+        db = sqlite3.connect(DB_FILE)
+        c = db.cursor()
+        print(fetch("user_base", f"ROWID={session['u_rowid'][0]}", "saved"))
+        c.execute("UPDATE user_base SET saved = ? WHERE ROWID=?",
+            (fetch("user_base", f"ROWID={session['u_rowid'][0]}", "saved")[0][0] + ", " + product_id,
+                session['u_rowid'][0]))
+        db.commit()
+        db.close()
+    return redirect(f"/product/{product_id}")
+
 
 @app.route("/demo_graph")
 def demo_graph():
@@ -365,7 +380,7 @@ def create_user(username, password):
     list = [username[0] for username in c.fetchall()]
     if not username in list:
         # creates user in table
-        c.execute("INSERT INTO user_base VALUES (?, ?, ?, ?)",(username, password, "", ""))
+        c.execute("INSERT INTO user_base VALUES (?, ?, ?, ?)",(username, password, "", " "))
 
         # set path
         c.execute("SELECT rowid FROM user_base WHERE username=?", (username,))
