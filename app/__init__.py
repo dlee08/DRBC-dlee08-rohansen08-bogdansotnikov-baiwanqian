@@ -468,9 +468,13 @@ def build_demo_data(country, target_currency):
   grouped["price"] = grouped["price"].round(2)
   return grouped.to_dict(orient="records")
 
-def build_choropleth_data(product_type):
+def build_choropleth_data(product_type, target_currency):
   catalog = get_catalog_df()
-  filtered = catalog[catalog["product_type"] == product_type].dropna(subset=["country", "price"])
+  filtered = catalog[catalog["product_type"] == product_type].dropna(subset=["country", "price", "currency"]).copy()
+  filtered["price"] = filtered.apply(
+      lambda row: convert_price(row["price"], row["currency"], target_currency),
+      axis=1
+  )
   grouped = (
     filtered.groupby("country", as_index=False)["price"]
     .mean()
@@ -542,7 +546,6 @@ def build_product_country_rating_data(product_group_id):
     ]
 
 # ================= Catalog Helpers ===================
-
 def get_categories():
     catalog = get_catalog_df()
     return sorted(catalog["display_category"].dropna().unique())
@@ -746,20 +749,6 @@ def catalog():
         total=total
     )
 
-@app.route("/product/<product_id>")
-def product_detail(product_id):
-    catalog = get_catalog_df()
-    product_rows = catalog[catalog["product_id"].astype(str) == product_id]
-    product_rows = product_rows.sort_values("country")
-    product_name = product_rows["product_name"].values[0]
-
-    return render_template(
-        "product.html",
-        items=product_rows.to_dict(orient="records"),
-        product_id=product_id,
-        product_name=product_name
-    )
-
 @app.route("/save/<product_id>", methods=["GET"])
 def cave(product_id):
     if 'u_rowid' in session:
@@ -790,14 +779,33 @@ def demo_graph():
 
 @app.route("/choropleth")
 def choropleth():
-    product_types = get_product_types()
-    default_product_type = product_types[0] if product_types else ""
-    return render_template (
+  product_types = get_product_types()
+  default_product_type = product_types[0] if product_types else ""
+  supported_currencies = get_supported_currencies()
+  return render_template(
     "choropleth.html",
-    product_types = product_types,
-    default_product_type = default_product_type
-)
+    product_types=product_types,
+    default_product_type=default_product_type,
+    currencies=supported_currencies,
+    default_currency=DEFAULT_TARGET_CURRENCY
+  )
 
+@app.route("/api/choropleth_data")
+def choropleth_data():
+  product_types = get_product_types()
+  default_product_type = product_types[0] if product_types else ""
+  product_type = request.args.get("product_type", default_product_type)
+  target_currency = request.args.get("target_currency", DEFAULT_TARGET_CURRENCY)
+  if product_type not in product_types:
+    return jsonify({"error": "Unknown product type"}), 400
+  if target_currency not in get_supported_currencies():
+    return jsonify({"error": "Unknown target currency"}), 400
+
+  return jsonify({
+    "product_type": product_type,
+    "target_currency": target_currency,
+    "data": build_choropleth_data(product_type, target_currency)
+  })
 
 @app.route("/api/demo_graph_data")
 def demo_graph_data():
@@ -842,6 +850,16 @@ def product_rating_graph_data(product_group_id):
     "product_group_id": product_group_id,
     "data": data
   })
+
+@app.route("/api/choropleth_product/<product_group_id>")
+def choropleth_product(product_group_id):
+    target_currency = request.args.get("target_currency", DEFAULT_TARGET_CURRENCY)
+
+    return jsonify({
+     "product_group_id": product_group_id,
+     "target_currency": target_currency,
+     "data": build_product_country_price_data(product_group_id, target_currency)
+    })
 
 def get_url(curr):
   return f'https://v6.exchangerate-api.com/v6/c608df1404c6c6b0bf2cd5bb/latest/{curr}'

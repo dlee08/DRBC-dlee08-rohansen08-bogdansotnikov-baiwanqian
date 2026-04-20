@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Product Metrics by Country</title>
     <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   </head>
   <body class="bg-primary-subtle">
@@ -49,6 +50,17 @@
             </div>
           </div>
           <div id="price-chart"></div>
+
+          <hr class="my-4">
+
+          <div id="choropleth-wrapper" style="position: relative;">
+            <div id="choropleth-map"></div>
+            <div id="choropleth-tooltip"
+              style="position: absolute; visibility: hidden; background: white; border: 1px solid #ccc; padding: 6px 10px; border-radius: 6px; font-size: 12px; pointer-events: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+            </div>
+          </div>
+          <div id="choropleth-legend" class="mt-3"></div>
+
         </div>
       </div>
 
@@ -334,12 +346,168 @@
           ratingChartData,
           document.getElementById("stacked-order-select").value
         );
+        await loadChoroplethData();
       }
 
       document.getElementById("currency-select").addEventListener("input", (event) => {
         selectedCurrency = event.target.value;
         loadPriceChartData();
       });
+
+      function normalizeName(name) {
+        const map = {
+          "United States of America": "USA",
+          "United Kingdom": "UK",
+          "United Arab Emirates": "UAE",
+          "Czechia": "Czech_Republic",
+          "Czech Republic": "Czech_Republic"
+        };
+        return map[name] || name.replaceAll(" ", "_");
+      }
+
+      function drawChoroplethLegend(colorScale, minPrice, maxPrice, currency) {
+        d3.select("#choropleth-legend").selectAll("*").remove();
+
+        const width = 360;
+        const height = 55;
+        const barWidth = 240;
+        const barHeight = 16;
+        const barX = (width - barWidth) / 2;
+
+        const svg = d3.select("#choropleth-legend")
+          .append("svg")
+          .attr("viewBox", [0, 0, width, height])
+          .attr("style", "max-width: 100%; height: auto;");
+        const defs = svg.append("defs");
+
+        const gradient = defs.append("linearGradient")
+          .attr("id", "choropleth-gradient")
+          .attr("x1", "0%")
+          .attr("x2", "100%")
+          .attr("y1", "0%")
+          .attr("y2", "0%");
+
+        gradient.append("stop")
+          .attr("offset", "0%")
+          .attr("stop-color", colorScale(minPrice));
+
+        gradient.append("stop")
+          .attr("offset", "100%")
+          .attr("stop-color", colorScale(maxPrice));
+
+        svg.append("rect")
+          .attr("x", barX)
+          .attr("y", 10)
+          .attr("width", barWidth)
+          .attr("height", barHeight)
+          .attr("fill", "url(#choropleth-gradient)")
+          .attr("stroke", "#ccc");
+
+        svg.append("text")
+          .attr("x", barX)
+          .attr("y", 42)
+          .attr("font-size", 10)
+          .attr("fill", "grey")
+          .attr("text-anchor", "start")
+          .text(`${minPrice.toFixed(2)} ${currency}`);
+
+        svg.append("text")
+          .attr("x", barX + barWidth)
+          .attr("y", 42)
+          .attr("font-size", 10)
+          .attr("fill", "grey")
+          .attr("text-anchor", "end")
+          .text(`${maxPrice.toFixed(2)} ${currency}`);
+      }
+
+      function createChoropleth() {
+        const width = 960;
+        const height = 550;
+
+        const svg = d3.create("svg")
+          .attr("viewBox", [0, 0, width, height])
+          .attr("style", "max-width: 100%; height: auto;");
+
+        const projection = d3.geoMercator()
+          .scale(130)
+          .center([0, 25])
+          .translate([width / 2, height / 1.6]);
+
+        const path = d3.geoPath().projection(projection);
+        const tooltip = d3.select("#choropleth-tooltip");
+
+        async function render(rows, currency) {
+          svg.selectAll("*").remove();
+
+          const data = await d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json");
+          const countries = topojson.feature(data, data.objects.countries).features;
+
+          const valueMap = new Map(
+            rows.map(row => [row.country, row.price])
+          );
+
+          const values = rows.map(row => row.price);
+          const minPrice = d3.min(values);
+          const maxPrice = d3.max(values);
+
+          const colorScale = d3.scaleSequential()
+            .domain([minPrice, maxPrice])
+            .interpolator(d3.interpolateBlues);
+
+          drawChoroplethLegend(colorScale, minPrice, maxPrice, currency);
+
+          svg.selectAll("path")
+            .data(countries)
+            .join("path")
+            .attr("d", path)
+            .attr("stroke", "white")
+            .attr("stroke-width", 0.5)
+            .attr("fill", function(d) {
+              const normalizedName = normalizeName(d.properties.name);
+              const value = valueMap.get(normalizedName);
+
+              if (value == null) {
+                return "#dddddd";
+              }
+              return colorScale(value);
+            })
+            .on("mousemove", function(event, d) {
+              const normalizedName = normalizeName(d.properties.name);
+              const value = valueMap.get(normalizedName);
+
+              const [x, y] = d3.pointer(event, svg.node());
+              tooltip
+                .style("visibility", "visible")
+                .style("left", `${x + 5}px`)
+                .style("top", `${y + 5}px`)
+                .html(
+                  value == null
+                    ? `<strong>${d.properties.name}</strong><br>No data`
+                    : `<strong>${d.properties.name}</strong><br>${value.toFixed(2)} ${currency}`
+                );
+            })
+            .on("mouseleave", function() {
+              tooltip.style("visibility", "hidden");
+            });
+        }
+
+        document.getElementById("choropleth-map").appendChild(svg.node());
+        return { render };
+      }
+
+      const choropleth = createChoropleth();
+
+      async function loadChoroplethData() {
+        const response = await fetch(
+          `/api/choropleth_product/${encodeURIComponent(productGroupId)}?target_currency=${encodeURIComponent(selectedCurrency)}`
+        );
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error || "Unable to load choropleth data.");
+        }
+
+        await choropleth.render(payload.data, payload.target_currency);
+      }
 
       document.getElementById("price-order-select").addEventListener("input", (event) => {
         priceChart.render(priceChartData, event.target.value);
@@ -356,6 +524,8 @@
       priceChart.render(priceChartData, document.getElementById("price-order-select").value);
       ratingChart.render(ratingChartData, document.getElementById("rating-order-select").value);
       stackedChart.render(priceChartData, ratingChartData, document.getElementById("stacked-order-select").value);
+      loadChoroplethData();
+
     </script>
   </body>
 </html>
