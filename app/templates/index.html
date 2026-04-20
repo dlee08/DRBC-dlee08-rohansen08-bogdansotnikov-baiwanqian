@@ -46,7 +46,7 @@
             <p>{{rand["product_name"].values[0]}}, from {{rand["country"].values[0]}}!</p>
             <p>{{rand["product_type"].values[0]}}</p>
             <p>Local Price: {{rand["price"].values[0]}} {{rand["currency"].values[0]}}</p>
-
+            <a href="/product_graph/{{ rand["product_type"].product_group_id }}">Check it out</a>
           </div>
         </div>
           <div class="card shadow-sm mb-4">
@@ -59,7 +59,10 @@
       </div>
     </div>
     <footer class="text-center fixed-bottom bg-white">
-      <p>Sponsored by Palantir, Tesla, and the Department of Government Efficiency</p>
+      <span>Thank you to our generous sponsors:</span>
+      <img src="static/logo.jpg" width=150>
+      <img src="static/logo2.png" width=50>
+      <img src="static/logo3.png" width=100>
     </footer>
   </body>
 </html>
