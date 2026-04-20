@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Product Prices by Country</title>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  </head>
+  <body class="bg-primary-subtle">
+    <div class="container py-4">
+      <a href="/" class="btn btn-outline-secondary btn-sm mb-3">Back to Home</a>
+      <h1 class="mb-2">Product Prices by Country</h1>
+      <p class="mb-3"><strong>Product:</strong> {{ product_label }}</p>
+
+      <div class="row g-3 align-items-end mb-4">
+        <div class="col-md-4">
+          <label for="currency-select" class="form-label">Currency</label>
+          <select id="currency-select" class="form-select">
+            {% for currency in currencies %}
+            <option value="{{ currency }}" {% if currency == default_currency %}selected{% endif %}>{{ currency }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div id="chart"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const productGroupId = {{ product_group_id|tojson }};
+      let selectedCurrency = {{ default_currency|tojson }};
+      let chartData = {{ chart_data|tojson }};
+
+      const width = 1100;
+      const height = 560;
+      const marginTop = 30;
+      const marginRight = 20;
+      const marginBottom = 140;
+      const marginLeft = 80;
+
+      const svg = d3.create("svg")
+        .attr("viewBox", [0, 0, width, height])
+        .attr("style", `max-width: ${width}px; height: auto; font: 12px sans-serif; overflow: visible;`);
+
+      const x = d3.scaleBand()
+        .range([marginLeft, width - marginRight])
+        .padding(0.18);
+
+      const y = d3.scaleLinear()
+        .range([height - marginBottom, marginTop]);
+
+      const barsLayer = svg.append("g");
+
+      const gx = svg.append("g")
+        .attr("transform", `translate(0,${height - marginBottom})`);
+
+      const gy = svg.append("g")
+        .attr("transform", `translate(${marginLeft},0)`);
+
+      function renderChart(rows) {
+        const sortedRows = [...rows].sort((a, b) => d3.ascending(a.country, b.country));
+        x.domain(sortedRows.map((row) => row.country));
+        y.domain([0, d3.max(sortedRows, (row) => row.price) || 1]).nice();
+
+        const t = svg.transition().duration(700);
+
+        barsLayer.selectAll("rect")
+          .data(sortedRows, (d) => d.country)
+          .join("rect")
+          .attr("x", (d) => x(d.country))
+          .attr("width", x.bandwidth())
+          .attr("fill", "#0d6efd")
+          .transition(t)
+          .attr("y", (d) => y(d.price))
+          .attr("height", (d) => y(0) - y(d.price));
+
+        gx.transition(t)
+          .call(d3.axisBottom(x).tickSizeOuter(0))
+          .call((g) => g.selectAll("text")
+            .attr("transform", "rotate(-35)")
+            .style("text-anchor", "end"));
+
+        gy.transition(t)
+          .call(d3.axisLeft(y).tickFormat(
+            (value) => `${value.toLocaleString(undefined, { maximumFractionDigits: 0 })} ${selectedCurrency}`
+          ))
+          .call((g) => g.select(".domain").remove());
+      }
+
+      async function loadChartData() {
+        const response = await fetch(
+          `/api/product_graph_data/${encodeURIComponent(productGroupId)}?target_currency=${encodeURIComponent(selectedCurrency)}`
+        );
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error || "Unable to load product graph data.");
+        }
+        chartData = payload.data;
+        selectedCurrency = payload.target_currency;
+        renderChart(chartData);
+      }
+
+      document.getElementById("currency-select").addEventListener("input", (event) => {
+        selectedCurrency = event.target.value;
+        loadChartData();
+      });
+
+      document.getElementById("chart").appendChild(svg.node());
+      renderChart(chartData);
+    </script>
+  </body>
+</html>
