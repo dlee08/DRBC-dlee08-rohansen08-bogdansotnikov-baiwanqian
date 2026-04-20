@@ -46,3 +46,6 @@ bogdanS -- 2026-04-15 11:34
 
 davidL -- 2026-04-16 00:05
 - fixed merge conflicts with yesterday's work (api integration with exchange currency plugged into y axis of product vs price demo graph)
+
+bogdanS -- 2026-04-19 20:15
+- Added feature to save favorite items
