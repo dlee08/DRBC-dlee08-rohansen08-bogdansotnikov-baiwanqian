@@ -243,10 +243,9 @@ def profile(u_rowid):
     if not 'u_rowid' in session:
         return redirect("/login")
     u_data = fetch('user_base', "ROWID=?", 'username, saved', (u_rowid,))[0]
-
     return render_template("profile.html",
         username=u_data[0],
-        saved = fetch("user_base", f"ROWID={session['u_rowid'][0]}", "saved"))
+        saved = u_data[1].split(", "))
 
 
 @app.route("/catalog")
@@ -296,14 +295,15 @@ def product_detail(product_id):
 @app.route("/save/<product_id>", methods=["GET"])
 def cave(product_id):
     if 'u_rowid' in session:
-        db = sqlite3.connect(DB_FILE)
-        c = db.cursor()
-        print(fetch("user_base", f"ROWID={session['u_rowid'][0]}", "saved"))
-        c.execute("UPDATE user_base SET saved = ? WHERE ROWID=?",
-            (fetch("user_base", f"ROWID={session['u_rowid'][0]}", "saved")[0][0] + ", " + product_id,
-                session['u_rowid'][0]))
-        db.commit()
-        db.close()
+        if product_id not in fetch('user_base',
+            "ROWID=?", 'saved', (session['u_rowid'][0],))[0][0].split(", "):
+            db = sqlite3.connect(DB_FILE)
+            c = db.cursor()
+            c.execute("UPDATE user_base SET saved = ? WHERE ROWID=?",
+                (fetch("user_base", f"ROWID={session['u_rowid'][0]}", "saved")[0][0] + ", " + product_id,
+                    session['u_rowid'][0]))
+            db.commit()
+            db.close()
     return redirect(f"/product/{product_id}")
 
 

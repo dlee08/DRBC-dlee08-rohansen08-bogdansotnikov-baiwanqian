@@ -15,7 +15,12 @@
     <br><br>
     <div class='main'>
       <h1> {{ username }} </h1>
-      <p>Saved: {{ saved }}</p>
+      <p>Saved:</p>
+      {% for item in saved %}
+        {% if item != " " %}
+          <p>{{ item }}</p>
+        {% endif %}
+      {% endfor %}
     </div>
 
   </body>
