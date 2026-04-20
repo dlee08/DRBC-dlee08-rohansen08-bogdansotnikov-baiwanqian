@@ -76,3 +76,8 @@ davidL -- 2026-04-20 02:10
 - updated product graph paths
 - implemented save item feature skeleton using bodgan's code
 - added logout button
+
+rohanS -- 2026-04-20 02:22
+- added in navbar
+- made UI more consistent
+- added in working search feature
