@@ -1,6 +1,8 @@
 from functools import lru_cache
 from pathlib import Path
 import hashlib
+import re
+import unicodedata
 from datetime import date
 
 import sqlite3
@@ -16,7 +18,7 @@ KEY_PATH = Path(__file__).resolve().parent / "keys" / "key_exchangerate-api.txt"
 DB_PATH = Path(__file__).resolve().parent / "data.db"
 MAX_PRODUCT_TYPES = 30
 DEFAULT_TARGET_CURRENCY = "USD"
-CATALOG_SCHEMA_VERSION = 3
+CATALOG_SCHEMA_VERSION = 4
 CATALOG_USECOLS = [
     "product_id",
     "product_name",
@@ -40,7 +42,15 @@ def db_value(value):
         return None
     return value
 
+def slugify_product_name(product_name):
+    ascii_value = unicodedata.normalize("NFKD", str(product_name)).encode("ascii", "ignore").decode("ascii")
+    ascii_value = ascii_value.lower()
+    ascii_value = re.sub(r"[^a-z0-9]+", "-", ascii_value)
+    return ascii_value.strip("-")
+
 def make_group_id(product_name, anchor_key):
+    if anchor_key == "name":
+        return slugify_product_name(product_name)
     return hashlib.md5(f"{product_name}|{anchor_key}".encode("utf-8")).hexdigest()
 
 def display_category(raw):
@@ -389,6 +399,48 @@ def get_product_name(product_group_id):
         return None
     return row[0]
 
+def get_product_summary(product_group_id):
+    product_name = get_product_name(product_group_id)
+    if not product_name:
+        return None
+
+    with get_db_connection() as db:
+        row = db.execute(
+            "SELECT product_name, product_description, product_type, display_category "
+            "FROM catalog_items WHERE product_name = ? "
+            "ORDER BY CASE WHEN product_description IS NULL OR TRIM(product_description) = '' THEN 1 ELSE 0 END, country "
+            "LIMIT 1",
+            (product_name,)
+        ).fetchone()
+    if row is None:
+        return None
+
+    return {
+        "product_name": row[0],
+        "product_description": row[1] or "N/A",
+        "product_type": row[2] or "N/A",
+        "display_category": row[3] or "N/A",
+    }
+
+def parse_saved_items(saved_value):
+    if not saved_value:
+        return []
+    return [item for item in str(saved_value).split(", ") if item and item != " "]
+
+def get_saved_product_entries(saved_value):
+    saved_ids = parse_saved_items(saved_value)
+    if not saved_ids:
+        return []
+    entries = []
+    for product_group_id in saved_ids:
+        label = get_product_label(product_group_id)
+        if label:
+            entries.append({
+                "group_id": product_group_id,
+                "label": label,
+            })
+    return entries
+
 def build_demo_data(country, target_currency):
   catalog = get_catalog_df()
   filtered = catalog[catalog["country"] == country].dropna(subset=["product_type", "price", "currency"]).copy()
@@ -543,16 +595,38 @@ def product_graph(product_group_id):
     product_label = get_product_label(product_group_id)
     if not product_label:
         return redirect("/")
+    product_summary = get_product_summary(product_group_id)
+    saved_value = fetch('user_base', "ROWID=?", 'saved', (session['u_rowid'][0],))[0][0]
+    is_saved = product_group_id in parse_saved_items(saved_value)
 
     return render_template(
         "product_country_graph.html",
         product_group_id=product_group_id,
         product_label=product_label,
+        product_summary=product_summary,
+        is_saved=is_saved,
         price_chart_data=price_chart_data,
         rating_chart_data=rating_chart_data,
         currencies=supported_currencies,
         default_currency=DEFAULT_TARGET_CURRENCY
     )
+
+@app.route("/save_product/<product_group_id>", methods=["GET"])
+def save_product(product_group_id):
+    if 'u_rowid' not in session:
+        return redirect("/login")
+
+    saved_value = fetch('user_base', "ROWID=?", 'saved', (session['u_rowid'][0],))[0][0]
+    saved_items = parse_saved_items(saved_value)
+    if product_group_id not in saved_items and get_product_label(product_group_id):
+        updated_saved = ", ".join(saved_items + [product_group_id]) if saved_items else product_group_id
+        db = get_db_connection()
+        c = db.cursor()
+        c.execute("UPDATE user_base SET saved = ? WHERE ROWID = ?", (updated_saved, session['u_rowid'][0]))
+        db.commit()
+        db.close()
+
+    return redirect(f"/product_graph/{product_group_id}")
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -624,12 +698,13 @@ def profile(u_rowid):
             db.close()
             success = "Password updated successfully."
 
-    u_data = fetch('user_base', "ROWID=?", 'username, password, creation_date, bio', (u_rowid,))[0]
+    u_data = fetch('user_base', "ROWID=?", 'username, password, creation_date, bio, saved', (u_rowid,))[0]
     return render_template("profile.html",
         username=u_data[0],
         password=u_data[1],
         creation_date=u_data[2],
         bio=u_data[3] or "",
+        saved_items=get_saved_product_entries(u_data[4]),
         error=error,
         success=success)
 

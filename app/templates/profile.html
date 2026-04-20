@@ -29,7 +29,16 @@
           <p><strong>Password:</strong> {{ password }}</p>
           <p><strong>Creation date:</strong> {{ creation_date }}</p>
           <p><strong>Bio:</strong> {{ bio }}</p>
-          <p><strong>Saved items:</strong> Not implemented yet.</p>
+          <p class="mb-1"><strong>Saved items:</strong></p>
+          {% if saved_items %}
+          <ul class="mb-4">
+            {% for item in saved_items %}
+            <li><a href="/product_graph/{{ item.group_id }}">{{ item.label }}</a></li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="mb-4">None yet.</p>
+          {% endif %}
 
           <hr class="my-4">
 
