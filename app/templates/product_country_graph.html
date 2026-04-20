@@ -9,9 +9,23 @@
   </head>
   <body class="bg-primary-subtle">
     <div class="container py-4">
-      <a href="/" class="btn btn-outline-secondary btn-sm mb-3">Back to Home</a>
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <a href="/" class="btn btn-outline-secondary btn-sm">Back to Home</a>
+        <a href="/save_product/{{ product_group_id }}" class="btn btn-primary btn-sm" {% if is_saved %}aria-disabled="true"{% endif %}>
+          {% if is_saved %}Item Saved{% else %}Save Item{% endif %}
+        </a>
+      </div>
       <h1 class="mb-2">Product Metrics by Country</h1>
-      <p class="mb-4"><strong>Product:</strong> {{ product_label }}</p>
+
+      <div class="card shadow-sm mb-4">
+        <div class="card-body">
+          <h2 class="h4 text-decoration-underline mb-3">Product Summary</h2>
+          <p class="mb-2"><strong>Name:</strong> {{ product_summary.product_name }}</p>
+          <p class="mb-2"><strong>Description:</strong> {{ product_summary.product_description }}</p>
+          <p class="mb-2"><strong>Type:</strong> {{ product_summary.product_type }}</p>
+          <p class="mb-0"><strong>Category:</strong> {{ product_summary.display_category }}</p>
+        </div>
+      </div>
 
       <div class="card shadow-sm mb-4">
         <div class="card-body">

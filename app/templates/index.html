@@ -15,35 +15,13 @@
         <div class="col-lg-8">
           <h1 class="mb-3">Welcome to IKEAlyzer</h1>
           <p class="lead">Find the best deals on IKEA products worldwide.</p>
-          <p class="mb-4">Start by picking any IKEA item and we will graph its price across every country where it exists.</p>
 
           <div class="card shadow-sm mb-4">
             <div class="card-body">
-              <h2 class="h4 mb-3">Graph One Product</h2>
-              <form method="POST" action="/product_graph" class="row g-3">
-                <div class="col-md-8">
-                  <label for="product_group_id" class="form-label">Product</label>
-                  <select id="product_group_id" name="product_group_id" class="form-select" required>
-                    <option value="">Choose a product</option>
-                    {% for product in products %}
-                    <option value="{{ product.group_id }}">{{ product.label }}</option>
-                    {% endfor %}
-                  </select>
-                </div>
-
-                <div class="col-md-4 d-flex align-items-end">
-                  <button type="submit" class="btn btn-primary w-100">View Country Prices</button>
-                </div>
-              </form>
+              <h2 class="h4 mb-3">Browse the Catalog</h2>
+              <a href="/catalog" class="btn btn-primary">Go to Catalog</a>
             </div>
           </div>
-
-          <p>Other features in progress:</p>
-          <ul>
-            <li>Grouped bar charts that compare selected IKEA data side-by-side.</li>
-            <li>Sortable bar charts for exploring price and rating trends.</li>
-            <li>Choropleth maps for visualizing product data geographically.</li>
-          </ul>
         </div>
       </div>
     </div>
