@@ -54,6 +54,24 @@
           <div id="rating-chart"></div>
         </div>
       </div>
+
+      <div class="card shadow-sm mt-4">
+        <div class="card-body">
+          <h2 class="h4 mb-3">Relative Price + Rating by Country</h2>
+          <p class="text-muted mb-3">Stacked bars compare normalized price and rating on a shared relative scale.</p>
+          <div class="row g-3 align-items-end mb-4">
+            <div class="col-md-4">
+              <label for="stacked-order-select" class="form-label">Order</label>
+              <select id="stacked-order-select" class="form-select">
+                <option value="alphabetical">Alphabetical</option>
+                <option value="ascending">Total, ascending</option>
+                <option value="descending" selected>Total, descending</option>
+              </select>
+            </div>
+          </div>
+          <div id="stacked-chart"></div>
+        </div>
+      </div>
     </div>
 
     <script>
@@ -149,6 +167,142 @@
         yTickFormatter: (value) => value.toLocaleString(undefined, { maximumFractionDigits: 1 })
       });
 
+      function normalizeMetric(rows, metricKey) {
+        const maxValue = d3.max(rows, (row) => row[metricKey]) || 0;
+        return rows.map((row) => ({
+          ...row,
+          [metricKey]: maxValue === 0 ? 0 : row[metricKey] / maxValue
+        }));
+      }
+
+      function buildStackedData(priceRows, ratingRows) {
+        const normalizedPrices = normalizeMetric(priceRows, "price");
+        const normalizedRatings = normalizeMetric(ratingRows, "rating");
+
+        const byCountry = new Map();
+        normalizedPrices.forEach((row) => {
+          const entry = byCountry.get(row.country) || { country: row.country, priceRelative: 0, ratingRelative: 0 };
+          entry.priceRelative = row.price;
+          byCountry.set(row.country, entry);
+        });
+        normalizedRatings.forEach((row) => {
+          const entry = byCountry.get(row.country) || { country: row.country, priceRelative: 0, ratingRelative: 0 };
+          entry.ratingRelative = row.rating;
+          byCountry.set(row.country, entry);
+        });
+
+        return Array.from(byCountry.values()).map((row) => ({
+          ...row,
+          totalRelative: row.priceRelative + row.ratingRelative
+        }));
+      }
+
+      function createStackedChart() {
+        const width = 1100;
+        const height = 560;
+        const marginTop = 30;
+        const marginRight = 20;
+        const marginBottom = 140;
+        const marginLeft = 80;
+        const keys = ["priceRelative", "ratingRelative"];
+        const colors = {
+          priceRelative: "#0d6efd",
+          ratingRelative: "#fd7e14"
+        };
+
+        const svg = d3.create("svg")
+          .attr("viewBox", [0, 0, width, height])
+          .attr("style", `max-width: ${width}px; height: auto; font: 12px sans-serif; overflow: visible;`);
+
+        const x = d3.scaleBand()
+          .range([marginLeft, width - marginRight])
+          .padding(0.18);
+
+        const y = d3.scaleLinear()
+          .range([height - marginBottom, marginTop]);
+
+        const stack = d3.stack().keys(keys);
+        const chartLayer = svg.append("g");
+        const gx = svg.append("g")
+          .attr("transform", `translate(0,${height - marginBottom})`);
+        const gy = svg.append("g")
+          .attr("transform", `translate(${marginLeft},0)`);
+
+        const legend = svg.append("g")
+          .attr("transform", `translate(${marginLeft}, ${height - 32})`);
+
+        const legendItems = [
+          { key: "priceRelative", label: "Relative price" },
+          { key: "ratingRelative", label: "Relative rating" }
+        ];
+
+        legend.selectAll("g")
+          .data(legendItems)
+          .join("g")
+          .attr("transform", (_, i) => `translate(${i * 180}, 0)`)
+          .call((g) => {
+            g.append("rect")
+              .attr("width", 16)
+              .attr("height", 16)
+              .attr("rx", 3)
+              .attr("fill", (d) => colors[d.key]);
+
+            g.append("text")
+              .attr("x", 24)
+              .attr("y", 12)
+              .text((d) => d.label);
+          });
+
+        const comparators = {
+          alphabetical: (a, b) => d3.ascending(a.country, b.country),
+          ascending: (a, b) => d3.ascending(a.totalRelative, b.totalRelative),
+          descending: (a, b) => d3.descending(a.totalRelative, b.totalRelative)
+        };
+
+        function render(priceRows, ratingRows, orderKey) {
+          const stackedData = buildStackedData(priceRows, ratingRows).sort(comparators[orderKey]);
+          const series = stack(stackedData);
+
+          x.domain(stackedData.map((row) => row.country));
+          y.domain([0, d3.max(stackedData, (row) => row.totalRelative) || 1]).nice();
+
+          const t = svg.transition().duration(700);
+
+          const layerSelection = chartLayer.selectAll("g.layer")
+            .data(series, (d) => d.key)
+            .join("g")
+            .attr("class", "layer")
+            .attr("fill", (d) => colors[d.key]);
+
+          layerSelection.selectAll("rect")
+            .data((d) => d.map((point) => ({ ...point, key: d.key })), (d) => d.data.country)
+            .join("rect")
+            .transition(t)
+            .delay((_, i) => i * 16)
+            .attr("x", (d) => x(d.data.country))
+            .attr("y", (d) => y(d[1]))
+            .attr("height", (d) => y(d[0]) - y(d[1]))
+            .attr("width", x.bandwidth());
+
+          gx.transition(t)
+            .call(d3.axisBottom(x).tickSizeOuter(0))
+            .call((g) => g.selectAll("text")
+              .attr("transform", "rotate(-35)")
+              .style("text-anchor", "end"));
+
+          gy.transition(t)
+            .call(d3.axisLeft(y).tickFormat(
+              (value) => value.toLocaleString(undefined, { maximumFractionDigits: 2 })
+            ))
+            .call((g) => g.select(".domain").remove());
+        }
+
+        document.getElementById("stacked-chart").appendChild(svg.node());
+        return { render };
+      }
+
+      const stackedChart = createStackedChart();
+
       async function loadPriceChartData() {
         const response = await fetch(
           `/api/product_graph_data/${encodeURIComponent(productGroupId)}?target_currency=${encodeURIComponent(selectedCurrency)}`
@@ -160,6 +314,11 @@
         priceChartData = payload.data;
         selectedCurrency = payload.target_currency;
         priceChart.render(priceChartData, document.getElementById("price-order-select").value);
+        stackedChart.render(
+          priceChartData,
+          ratingChartData,
+          document.getElementById("stacked-order-select").value
+        );
       }
 
       document.getElementById("currency-select").addEventListener("input", (event) => {
@@ -175,8 +334,13 @@
         ratingChart.render(ratingChartData, event.target.value);
       });
 
+      document.getElementById("stacked-order-select").addEventListener("input", (event) => {
+        stackedChart.render(priceChartData, ratingChartData, event.target.value);
+      });
+
       priceChart.render(priceChartData, document.getElementById("price-order-select").value);
       ratingChart.render(ratingChartData, document.getElementById("rating-order-select").value);
+      stackedChart.render(priceChartData, ratingChartData, document.getElementById("stacked-order-select").value);
     </script>
   </body>
 </html>

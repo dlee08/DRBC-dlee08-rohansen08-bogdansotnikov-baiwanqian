@@ -64,3 +64,9 @@ christineC -- 2026-04-17 04:00
 
 bogdanS -- 2026-04-19 20:15
 - Added feature to save favorite items
+
+davidL -- 2026-04-20 01:14
+- Added two more graphs: product rating by country for each product, stacked bar graph for rating + price by country for each product
+- Added dropdown in home page to streamline data viz accessibility (temp)
+- Revised csv --> sqlite table pipeline for data preprocessing
+- Removed demo_graph (no longer needed)
