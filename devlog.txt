@@ -81,3 +81,4 @@ rohanS -- 2026-04-20 02:22
 - added in navbar
 - made UI more consistent
 - added in working search feature
+- random featured item
