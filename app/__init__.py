@@ -362,6 +362,11 @@ def ensure_catalog_db():
 
 ensure_catalog_db()
 
+def get_random():
+    catalog_s = get_catalog_df()
+    return catalog_s.sample()
+
+
 def get_product_options():
     with get_db_connection() as db:
         rows = db.execute(
@@ -571,7 +576,8 @@ def get_catalog_items(page=1, limit=50, country=None, category=None, search=None
 def homepage():
   if not 'u_rowid' in session:
   	return redirect("/login")
-  return render_template("index.html", products=get_product_options())
+  rand = get_random()
+  return render_template("index.html", products=get_product_options(), rand=rand)
 
 @app.route("/product_graph", methods=["POST"])
 def product_graph_redirect():
