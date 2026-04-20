@@ -306,7 +306,6 @@ def cave(product_id):
             db.close()
     return redirect(f"/product/{product_id}")
 
-
 @app.route("/demo_graph")
 def demo_graph():
   countries = get_countries()
