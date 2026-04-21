@@ -118,6 +118,15 @@
       let priceChartData = {{ price_chart_data|tojson }};
       let ratingChartData = {{ rating_chart_data|tojson }};
 
+      let worldCountries= null;
+      function getWorldCountries() {
+        if (!worldCountries) {
+          worldCountries = d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json")
+            .then(data => topojson.feature(data, data.objects.countries).features);
+        }
+        return worldCountries;
+      }
+
       function createBarChart({ containerId, metricKey, metricLabel, fill, yTickFormatter, defaultMax = null }) {
         const width = 1100;
         const height = 560;
@@ -453,8 +462,7 @@
         async function render(rows) {
           svg.selectAll("*").remove();
 
-          const data = await d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json");
-          const countries = topojson.feature(data, data.objects.countries).features;
+          const countries = await getWorldCountries();
 
           const valueMap = new Map(
             rows.map(row => [row.country, row[metricKey]])
