@@ -578,10 +578,12 @@ def get_saved_product_entries(saved_value):
         label = get_product_label(product_group_id)
         name = get_product_name(product_group_id)
         desc = get_product_summary(product_group_id)['product_description']
+        link = f"/product_graph/{name}".lower()
         price = build_product_country_price_data(product_group_id, "USD")
         if label:
             entries.append({
                 "group_id": product_group_id,
+                "link" : link,
                 "label": label,
                 "name": name,
                 "desc": desc,
@@ -750,8 +752,12 @@ def homepage():
     return redirect("/login")
   saved = get_saved_product_entries(saved_value)
   featured_group_id = make_group_id(str(rand["product_name"].values[0]), "name")
-  return render_template("index.html", products=get_product_options(), rand=rand, randimg=get_or_fetch_product_image(rand["product_id"].values[0]),rand2=rand2,
-      saved=saved, savelen=len(saved), user=user_rows[0][0], featured_group_id=featured_group_id)
+  if (saved):
+      return render_template("index.html", products=get_product_options(), rand=rand, rand2=rand2,
+          saved=saved, user=user_rows[0][0], featured_group_id=featured_group_id, hasSaved = True)
+  else:
+      return render_template("index.html", products=get_product_options(), rand=rand, rand2=rand2,
+          saved=saved, user=user_rows[0][0], featured_group_id=featured_group_id, hasSaved = False)
 
 @app.route("/product_graph", methods=["POST"])
 def product_graph_redirect():

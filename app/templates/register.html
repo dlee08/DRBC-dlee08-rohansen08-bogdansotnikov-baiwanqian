@@ -7,29 +7,63 @@
     <title>IKEAlyzer Login</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+     <style>
+      body {
+        min-height: 100vh;
+        background: url("/static/blue_bg.png") no-repeat center;
+        background-size: cover;
+        overflow: hidden;
+      }
+
+      .main-content {
+        animation: riseIn 1s ease-out, breathe 4s ease-in-out infinite;
+      }
+
+      @keyframes riseIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      @keyframes breathe {
+        0%,100% { transform: scale(1); }
+        50% { transform: scale(1.03); }
+      }
+    </style>
   </head>
 
   <nav>
-    <a href='/' class="back">&#8592; </a>
+    <button onclick="location.href='/'" id="back" class="mb-5 btn btn-outline-light w-100" style="max-width:150px;"> Back </button>
   </nav>
 
-  <body>
-    <div class="main">
-      <form method='POST' action="/register">
-        <h1> Create &nbsp an &nbsp Account </h1>
-        <p>
+  <body class="text-center d-flex flex-column justify-content-center align-items-center">
+
+    <div class="main-content">
+
+     <h1 class="title text-white mb-4 display-2 fw-bold">IKEAlyzer</h1>
+
+       <h3 class="text-white">
+        Register
+       </h3>
+       <p id="prompt" class="mb-3 text-white"> Create &nbsp an &nbsp Account: </p>
+
+    </div>
+
+      <form method='POST' action="/register" class="w-100" style="max-width:300px;">
+
+        <p class="text-white">
           {{ error|safe }}
           USERNAME:
         </p>
-        <input type="text" name="username" required>
+        <input type="text" name="username" class="form-control mb-1" required>
         <br>
-        <p> PASSWORD: </p>
-        <input type="password" name="password" required>
+        <p class="text-white"> PASSWORD: </p>
+        <input type="password" name="password" class="form-control mb-1" required>
         <br>
-        <p> CONFIRM &nbsp PASSWORD: </p>
-        <input type="password" name="confirm" required>
+        <p class="text-white"> CONFIRM &nbsp PASSWORD: </p>
+        <input type="password" name="confirm" class="form-control mb-1" required>
         <br><br>
-        <input type="submit" value="Register" id= "sub1" name="sub1">
+        <input type="submit" value="Register" id= "sub1" name="sub1" class="btn btn-primary w-100">
       </form>
     </div>
   </body>
