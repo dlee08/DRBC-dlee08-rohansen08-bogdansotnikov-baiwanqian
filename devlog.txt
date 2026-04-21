@@ -115,5 +115,9 @@ rohanS -- 2026-04-21 01:37
 - continued ui/ux improvements
 - expanded explore page
 
+christineC -- 2026-04-21 6:30
+- Added styling and basic animation to login page
+- Added to register page
+
 bogdanS -- 2026-04-21 11:15
 - made saved only show up on homepage if user has saved items
