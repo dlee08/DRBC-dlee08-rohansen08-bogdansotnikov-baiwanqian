@@ -440,7 +440,7 @@ def get_saved_product_entries(saved_value):
     for product_group_id in saved_ids:
         label = get_product_label(product_group_id)
         name = get_product_name(product_group_id)
-        desc = get_product_summary(product_group_id)
+        desc = get_product_summary(product_group_id)['product_description']
         price = build_product_country_price_data(product_group_id, "USD")
         if label:
             entries.append({
@@ -587,7 +587,6 @@ def homepage():
   	return redirect("/login")
   rand = get_random()
   saved = get_saved_product_entries(fetch("user_base", "ROWID=?", "saved", (session['u_rowid'][0],))[0][0])
-  print(saved)
   return render_template("index.html", products=get_product_options(), rand=rand,
       saved = saved)
 
