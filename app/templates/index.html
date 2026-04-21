@@ -81,6 +81,7 @@
       <div class="carousel-item {% if loop.first %}active{% endif %}">
         <div class="card">
           <div class="card-body">
+            <img src="{{randimg}}">
             <h3 class="card-title">{{ item.name }}</h3>
             <p>{{ item.desc }}</p>
             <p>Price:</p>
@@ -90,7 +91,7 @@
       </div>
     {% endfor %}
   </div>
-
+{% if savelen > 1 %}
   <button class="carousel-control-prev" type="button" data-bs-target="#savedCarousel" data-bs-slide="prev">
     <span class="carousel-control-prev-icon" aria-hidden="true"></span>
     <span class="visually-hidden">Previous</span>
@@ -100,6 +101,7 @@
     <span class="carousel-control-next-icon" aria-hidden="true"></span>
     <span class="visually-hidden">Next</span>
   </button>
+  {% endif %}
 </div>
         </div>
         </div>
@@ -107,9 +109,9 @@
     </div>
     <footer class="text-center fixed-bottom bg-white">
       <span class="h6">Thank you to our generous sponsors:</span>
-      <img src="static/logo.jpg" width=100>
-      <img src="static/logo2.png" width=25>
-      <img src="static/logo3.png" width=100>
+      <a href="https://palantir.com"><img src="static/logo.jpg" width=100></a>
+      <a href="https://x.com"><img src="static/logo2.png" width=25></a>
+      <a href="https://blackrock.com"><img src="static/logo3.png" width=100></a>
     </footer>
     <script>
   const savedItems = {{ saved|tojson }};
