@@ -11,6 +11,7 @@ import pandas as pd
 from flask import Flask, jsonify, render_template, request, session, redirect
 import json
 import urllib.request as urllib
+from bs4 import BeautifulSoup
 
 app = Flask(__name__)
 DATA_PATH = Path(__file__).resolve().parent / "data" / "IKEA_product_catalog.csv"
@@ -18,13 +19,16 @@ KEY_PATH = Path(__file__).resolve().parent / "keys" / "key_exchangerate-api.txt"
 DB_PATH = Path(__file__).resolve().parent / "data.db"
 MAX_PRODUCT_TYPES = 30
 DEFAULT_TARGET_CURRENCY = "USD"
-CATALOG_SCHEMA_VERSION = 4
+CATALOG_SCHEMA_VERSION = 7
 CATALOG_USECOLS = [
     "product_id",
     "product_name",
     "product_type",
     "product_description",
     "main_category",
+    "badge",
+    "discount",
+    "sale_tag",
     "country",
     "price",
     "currency",
@@ -91,10 +95,18 @@ def load_catalog():
 @lru_cache(maxsize=1)
 def get_catalog_df():
     return catalog_query_df(
-        "SELECT product_id, product_name, product_type, product_description, main_category, country, price, currency, "
+        "SELECT product_id, product_name, product_type, product_description, main_category, badge, discount, sale_tag, country, price, currency, "
         "product_rating, product_rating_count, url, display_category "
         "FROM catalog_items"
     )
+
+def format_catalog_tag(value):
+    if value is None:
+        return None
+    tag = str(value).strip()
+    if not tag or tag.lower() == "none":
+        return None
+    return tag.replace("_", " ").title()
 
 def clean_dropdown_description(product_name, product_description):
     if product_description is None:
@@ -119,6 +131,44 @@ def choose_group_description(product_name, product_rows):
         return ""
     descriptions = sorted(set(descriptions), key=lambda description: (len(description), description.lower()))
     return descriptions[0]
+
+def extract_image_url(product_url):
+    if not product_url:
+        return None
+    try:
+        response = requests.get(product_url, timeout=20)
+        response.raise_for_status()
+    except requests.RequestException:
+        return None
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    og_image = soup.find("meta", attrs={"property": "og:image"})
+    if og_image and og_image.get("content"):
+        return og_image["content"]
+
+    for script in soup.find_all("script", attrs={"type": "application/ld+json"}):
+        script_text = script.string or script.get_text(strip=True)
+        if not script_text:
+            continue
+        try:
+            payload = json.loads(script_text)
+        except (json.JSONDecodeError, TypeError):
+            continue
+
+        candidates = payload if isinstance(payload, list) else [payload]
+        for item in candidates:
+            if not isinstance(item, dict):
+                continue
+            image_value = item.get("image")
+            if isinstance(image_value, str) and image_value:
+                return image_value
+            if isinstance(image_value, list) and image_value:
+                first_image = image_value[0]
+                if isinstance(first_image, str) and first_image:
+                    return first_image
+
+    return None
 
 
 def load_exchange_rate_api_key():
@@ -174,11 +224,17 @@ def build_product_groups(catalog):
         group_id = make_group_id(product_name, "name")
         description = choose_group_description(product_name, product_rows)
         label = f"{product_name} - {description}" if description else product_name
+        representative_url = next(
+            (str(url).strip() for url in product_rows["url"].tolist() if pd.notna(url) and str(url).strip()),
+            None
+        )
         group_rows.append({
             "group_id": group_id,
             "product_name": product_name,
             "label": label,
             "product_description": description,
+            "product_page_url": representative_url,
+            "image_url": None,
             "countries_count": int(product_rows["country"].nunique()),
         })
 
@@ -189,6 +245,8 @@ def build_product_groups(catalog):
             "product_name": row["product_name"],
             "label": row["label"],
             "product_description": row["product_description"],
+            "product_page_url": row["product_page_url"],
+            "image_url": row["image_url"],
             "countries_count": int(row["countries_count"]),
         }
         for row in product_groups.to_dict(orient="records")
@@ -263,6 +321,9 @@ def rebuild_catalog_db():
             "product_type TEXT, "
             "product_description TEXT, "
             "main_category TEXT, "
+            "badge TEXT, "
+            "discount TEXT, "
+            "sale_tag TEXT, "
             "country TEXT, "
             "price REAL, "
             "currency TEXT, "
@@ -277,6 +338,8 @@ def rebuild_catalog_db():
             "product_name TEXT NOT NULL, "
             "label TEXT NOT NULL, "
             "product_description TEXT, "
+            "product_page_url TEXT, "
+            "image_url TEXT, "
             "countries_count INTEGER NOT NULL)"
         )
         db.execute(
@@ -288,9 +351,9 @@ def rebuild_catalog_db():
             "currency TEXT NOT NULL)"
         )
         db.executemany(
-            "INSERT INTO catalog_items(product_id, product_name, product_type, product_description, main_category, country, price, currency, "
+            "INSERT INTO catalog_items(product_id, product_name, product_type, product_description, main_category, badge, discount, sale_tag, country, price, currency, "
             "product_rating, product_rating_count, url, display_category) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 (
                     row["product_id"],
@@ -298,6 +361,9 @@ def rebuild_catalog_db():
                     db_value(row["product_type"]),
                     db_value(row["product_description"]),
                     db_value(row["main_category"]),
+                    db_value(row["badge"]),
+                    db_value(row["discount"]),
+                    db_value(row["sale_tag"]),
                     db_value(row["country"]),
                     db_value(row["price"]),
                     db_value(row["currency"]),
@@ -310,14 +376,16 @@ def rebuild_catalog_db():
             ]
         )
         db.executemany(
-            "INSERT INTO product_groups(group_id, product_name, label, product_description, countries_count) "
-            "VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO product_groups(group_id, product_name, label, product_description, product_page_url, image_url, countries_count) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
             [
                 (
                     row["group_id"],
                     row["product_name"],
                     row["label"],
                     db_value(row["product_description"]),
+                    db_value(row["product_page_url"]),
+                    db_value(row["image_url"]),
                     int(row["countries_count"]),
                 )
                 for row in product_group_rows.to_dict(orient="records")
@@ -366,11 +434,70 @@ def get_random():
     catalog_s = get_catalog_df()
     return catalog_s.sample()
 
+def fetch_product_group_media(group_ids):
+    if not group_ids:
+        return {}
+    placeholders = ", ".join(["?"] * len(group_ids))
+    with get_db_connection() as db:
+        rows = db.execute(
+            f"SELECT group_id, product_page_url, image_url FROM product_groups WHERE group_id IN ({placeholders})",
+            tuple(group_ids)
+        ).fetchall()
+    return {
+        row[0]: {
+            "product_page_url": row[1],
+            "image_url": row[2],
+        }
+        for row in rows
+    }
+
+def update_product_group_image(group_id, image_url):
+    with get_db_connection() as db:
+        db.execute(
+            "UPDATE product_groups SET image_url = ? WHERE group_id = ?",
+            (image_url, group_id)
+        )
+
+def get_or_fetch_product_image(product_group_id):
+    media_map = fetch_product_group_media([product_group_id])
+    media = media_map.get(product_group_id)
+    if not media:
+        return None
+    if media["image_url"]:
+        return media["image_url"]
+    if not media["product_page_url"]:
+        return None
+
+    image_url = extract_image_url(media["product_page_url"])
+    if image_url:
+        update_product_group_image(product_group_id, image_url)
+    return image_url
+
+def populate_missing_group_images(group_ids):
+    media_map = fetch_product_group_media(group_ids)
+    updates = []
+    for group_id in group_ids:
+        media = media_map.get(group_id)
+        if not media or media["image_url"] or not media["product_page_url"]:
+            continue
+        image_url = extract_image_url(media["product_page_url"])
+        if image_url:
+            updates.append((image_url, group_id))
+
+    if updates:
+        with get_db_connection() as db:
+            db.executemany(
+                "UPDATE product_groups SET image_url = ? WHERE group_id = ?",
+                updates
+            )
+
+    return fetch_product_group_media(group_ids)
+
 
 def get_product_options():
     with get_db_connection() as db:
         rows = db.execute(
-            "SELECT group_id, product_name, label, product_description, countries_count "
+            "SELECT group_id, product_name, label, product_description, product_page_url, image_url, countries_count "
             "FROM product_groups ORDER BY label"
         ).fetchall()
     return [
@@ -379,10 +506,19 @@ def get_product_options():
             "product_name": row[1],
             "label": row[2],
             "product_description": row[3],
-            "countries_count": row[4],
+            "product_page_url": row[4],
+            "image_url": row[5],
+            "countries_count": row[6],
         }
         for row in rows
     ]
+
+def get_multi_country_group_ids():
+    with get_db_connection() as db:
+        rows = db.execute(
+            "SELECT group_id FROM product_groups WHERE countries_count > 1"
+        ).fetchall()
+    return {row[0] for row in rows}
 
 def get_product_label(product_group_id):
     with get_db_connection() as db:
@@ -568,10 +704,26 @@ def get_catalog_items(page=1, limit=51, country=None, category=None, search=None
 
     grouped = catalog.drop_duplicates(subset="product_name", keep="first").copy()
     grouped["product_group_id"] = grouped["product_name"].apply(lambda product_name: make_group_id(product_name, "name"))
+    grouped = grouped[grouped["product_group_id"].isin(get_multi_country_group_ids())]
     grouped = grouped.sort_values("product_name").reset_index(drop=True)
+    grouped["catalog_tags"] = grouped.apply(
+        lambda row: [
+            tag for tag in [
+                format_catalog_tag(row.get("badge")),
+                format_catalog_tag(row.get("discount")),
+                format_catalog_tag(row.get("sale_tag")),
+            ] if tag
+        ],
+        axis=1
+    )
     total = len(grouped)
     start = (page-1) * limit
     grouped = grouped[start:(start + limit)]
+    group_ids = grouped["product_group_id"].tolist()
+    media_map = fetch_product_group_media(group_ids)
+    grouped["image_url"] = grouped["product_group_id"].map(
+        lambda group_id: media_map.get(group_id, {}).get("image_url")
+    )
     return grouped.to_dict(orient="records"), total
 # ===================================================
 
@@ -580,6 +732,8 @@ def get_catalog_items(page=1, limit=51, country=None, category=None, search=None
 def homepage():
   if not 'u_rowid' in session:
   	return redirect("/login")
+  if get_session_user_rowid() is None or get_current_user_saved_value() is None:
+    return redirect("/login")
   rand = get_random()
   return render_template("index.html", products=get_product_options(), rand=rand)
 
@@ -596,6 +750,9 @@ def product_graph_redirect():
 def product_graph(product_group_id):
     if not 'u_rowid' in session:
         return redirect("/login")
+    saved_value = get_current_user_saved_value()
+    if saved_value is None:
+        return redirect("/login")
     supported_currencies = get_supported_currencies()
     price_chart_data = build_product_country_price_data(product_group_id, DEFAULT_TARGET_CURRENCY)
     if not price_chart_data:
@@ -606,7 +763,7 @@ def product_graph(product_group_id):
     if not product_label:
         return redirect("/")
     product_summary = get_product_summary(product_group_id)
-    saved_value = fetch('user_base', "ROWID=?", 'saved', (session['u_rowid'][0],))[0][0]
+    product_image_url = get_or_fetch_product_image(product_group_id)
     is_saved = product_group_id in parse_saved_items(saved_value)
 
     return render_template(
@@ -614,6 +771,7 @@ def product_graph(product_group_id):
         product_group_id=product_group_id,
         product_label=product_label,
         product_summary=product_summary,
+        product_image_url=product_image_url,
         is_saved=is_saved,
         price_chart_data=price_chart_data,
         rating_chart_data=rating_chart_data,
@@ -626,13 +784,16 @@ def save_product(product_group_id):
     if 'u_rowid' not in session:
         return redirect("/login")
 
-    saved_value = fetch('user_base', "ROWID=?", 'saved', (session['u_rowid'][0],))[0][0]
+    user_rowid = get_session_user_rowid()
+    saved_value = get_current_user_saved_value()
+    if user_rowid is None or saved_value is None:
+        return redirect("/login")
     saved_items = parse_saved_items(saved_value)
     if product_group_id not in saved_items and get_product_label(product_group_id):
         updated_saved = ", ".join(saved_items + [product_group_id]) if saved_items else product_group_id
         db = get_db_connection()
         c = db.cursor()
-        c.execute("UPDATE user_base SET saved = ? WHERE ROWID = ?", (updated_saved, session['u_rowid'][0]))
+        c.execute("UPDATE user_base SET saved = ? WHERE ROWID = ?", (updated_saved, user_rowid))
         db.commit()
         db.close()
 
@@ -649,7 +810,7 @@ def login():
       return render_template("login.html",
                              error="Wrong &nbsp username &nbsp or &nbsp password!<br><br>")
     else:
-      session["u_rowid"] = fetch("user_base", "username = ?", "rowid", (request.form['username'],))[0]
+      session["u_rowid"] = fetch("user_base", "username = ?", "rowid", (request.form['username'],))[0][0]
     if 'u_rowid' in session:
       return redirect("/")
     session.clear()
@@ -680,21 +841,31 @@ def logout():
 def profileDefault():
     if not 'u_rowid' in session:
         return redirect("/login")
-    return redirect(f"/profile/{session['u_rowid'][0]}")
+    user_rowid = get_session_user_rowid()
+    if user_rowid is None:
+        return redirect("/login")
+    return redirect(f"/profile/{user_rowid}")
 
 @app.route('/profile/<u_rowid>', methods=["GET", "POST"]) # makes u_rowid a variable that is passed to the function
 def profile(u_rowid):
     if not 'u_rowid' in session:
         return redirect("/login")
-    if str(session['u_rowid'][0]) != str(u_rowid):
-        return redirect(f"/profile/{session['u_rowid'][0]}")
+    current_user_rowid = get_session_user_rowid()
+    if current_user_rowid is None:
+        return redirect("/login")
+    if str(current_user_rowid) != str(u_rowid):
+        return redirect(f"/profile/{current_user_rowid}")
 
     error = ""
     success = ""
     if request.method == "POST":
         old_password = request.form.get("old_password", "")
         new_password = request.form.get("new_password", "")
-        u_password = fetch('user_base', "ROWID=?", 'password', (u_rowid,))[0][0]
+        password_rows = fetch('user_base', "ROWID=?", 'password', (u_rowid,))
+        if not password_rows:
+            session.pop("u_rowid", None)
+            return redirect("/login")
+        u_password = password_rows[0][0]
 
         if old_password != u_password:
             error = "Old password is incorrect."
@@ -708,7 +879,11 @@ def profile(u_rowid):
             db.close()
             success = "Password updated successfully."
 
-    u_data = fetch('user_base', "ROWID=?", 'username, password, creation_date, bio, saved', (u_rowid,))[0]
+    user_rows = fetch('user_base', "ROWID=?", 'username, password, creation_date, bio, saved', (u_rowid,))
+    if not user_rows:
+        session.pop("u_rowid", None)
+        return redirect("/login")
+    u_data = user_rows[0]
     return render_template("profile.html",
         username=u_data[0],
         password=u_data[1],
@@ -753,13 +928,16 @@ def catalog():
 @app.route("/save/<product_id>", methods=["GET"])
 def cave(product_id):
     if 'u_rowid' in session:
-        if product_id not in fetch('user_base',
-            "ROWID=?", 'saved', (session['u_rowid'][0],))[0][0].split(", "):
+        user_rowid = get_session_user_rowid()
+        saved_value = get_current_user_saved_value()
+        if user_rowid is None or saved_value is None:
+            return redirect("/login")
+        if product_id not in saved_value.split(", "):
             db = get_db_connection()
             c = db.cursor()
             c.execute("UPDATE user_base SET saved = ? WHERE ROWID=?",
-                (fetch("user_base", f"ROWID={session['u_rowid'][0]}", "saved")[0][0] + ", " + product_id,
-                    session['u_rowid'][0]))
+                (fetch("user_base", f"ROWID={user_rowid}", "saved")[0][0] + ", " + product_id,
+                    user_rowid))
             db.commit()
             db.close()
     return redirect(f"/product/{product_id}")
@@ -875,6 +1053,22 @@ def fetch(table, criteria, data, params = ()):
     db.commit()
     db.close()
     return data
+
+def get_session_user_rowid():
+    raw_user_id = session.get("u_rowid")
+    if isinstance(raw_user_id, (list, tuple)):
+        return raw_user_id[0] if raw_user_id else None
+    return raw_user_id
+
+def get_current_user_saved_value():
+    user_rowid = get_session_user_rowid()
+    if user_rowid is None:
+        return None
+    saved_rows = fetch('user_base', "ROWID=?", 'saved', (user_rowid,))
+    if not saved_rows:
+        session.pop("u_rowid", None)
+        return None
+    return saved_rows[0][0]
 
 def create_user(username, password):
     db = get_db_connection()
