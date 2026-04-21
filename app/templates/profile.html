@@ -16,6 +16,13 @@
         overflow-x: hidden;
       }
 
+      .navbar-brand {
+        font-weight: 500;
+        letter-spacing: 0.5px;
+        color: #0d3b66;
+        border-bottom: 2px solid rgba(0, 100, 250, 0.3);
+      }
+
       .title-content {
         text-align: center;
         color: #272757;
@@ -41,11 +48,34 @@
     </style>
   </head>
   <body class="bg-primary-subtle">
-    <div class="container py-4">
-      <div class="d-flex justify-content-between align-items-center mb-4">
-        <a href="/" class="btn btn-outline-secondary btn-sm">Back to Home</a>
-        <a href="/logout" class="btn btn-outline-danger btn-sm">Logout</a>
+    <nav class="navbar navbar-expand-lg bg-body-tertiary shadow-sm">
+        <div class="container-fluid">
+        <a class="navbar-brand" href="/">IKEAlyzer</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+          <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+            <li class="nav-item">
+              <a class="btn" href="/">Home</a>
+            </li>
+            <li class="nav-item">
+              <a href="/profile" class="btn">Profile</a>
+            </li>
+            <li class="nav-item">
+              <a href="/catalog" class="btn">Catalog</a>
+            </li>
+          </ul>
+          <form class="d-flex" role="search" action="/catalog" method="GET">
+            <input class="form-control me-2" type="search" placeholder="Search" aria-label="Search" name="search"/>
+            <button class="btn btn-outline-success" type="submit">Search</button>
+            <a href="/login" class="ps-4 btn">Logout</a>
+          </form>
+        </div>
       </div>
+    </nav>
+
+    <div class="container py-5">
 
       <div class="card shadow-sm">
         <div class="card-body p-4">

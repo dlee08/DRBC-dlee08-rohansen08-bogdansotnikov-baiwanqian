@@ -16,6 +16,13 @@
         overflow-x: hidden;
       }
 
+      .navbar-brand {
+        font-weight: 500;
+        letter-spacing: 0.5px;
+        color: #0d3b66;
+        border-bottom: 2px solid rgba(0, 100, 250, 0.3);
+      }
+
       .title-content {
         text-align: center;
         color: white;
@@ -81,6 +88,7 @@
           <form class="d-flex" role="search" action="/catalog" method="GET">
             <input class="form-control me-2" type="search" placeholder="Search" aria-label="Search" name="search"/>
             <button class="btn btn-outline-success" type="submit">Search</button>
+            <a href="/login" class="ps-4 btn">Logout</a>
           </form>
         </div>
         </div>
