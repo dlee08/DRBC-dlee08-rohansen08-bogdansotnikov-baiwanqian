@@ -963,66 +963,6 @@ def cave(product_id):
             db.close()
     return redirect(f"/product/{product_id}")
 
-@app.route("/demo_graph")
-def demo_graph():
-  countries = get_countries()
-  default_country = "USA" if "USA" in countries else countries[0]
-  supported_currencies = get_supported_currencies()
-  return render_template(
-    "demo_graph.html",
-    countries=countries,
-    default_country=default_country,
-    currencies=supported_currencies,
-    default_currency=DEFAULT_TARGET_CURRENCY
-  )
-
-
-@app.route("/choropleth")
-def choropleth():
-  product_types = get_product_types()
-  default_product_type = product_types[0] if product_types else ""
-  supported_currencies = get_supported_currencies()
-  return render_template(
-    "choropleth.html",
-    product_types=product_types,
-    default_product_type=default_product_type,
-    currencies=supported_currencies,
-    default_currency=DEFAULT_TARGET_CURRENCY
-  )
-
-@app.route("/api/choropleth_data")
-def choropleth_data():
-  product_types = get_product_types()
-  default_product_type = product_types[0] if product_types else ""
-  product_type = request.args.get("product_type", default_product_type)
-  target_currency = request.args.get("target_currency", DEFAULT_TARGET_CURRENCY)
-  if product_type not in product_types:
-    return jsonify({"error": "Unknown product type"}), 400
-  if target_currency not in get_supported_currencies():
-    return jsonify({"error": "Unknown target currency"}), 400
-
-  return jsonify({
-    "product_type": product_type,
-    "target_currency": target_currency,
-    "data": build_choropleth_data(product_type, target_currency)
-  })
-
-@app.route("/api/demo_graph_data")
-def demo_graph_data():
-  countries = get_countries()
-  default_country = "USA" if "USA" in countries else countries[0]
-  country = request.args.get("country", default_country)
-  target_currency = request.args.get("target_currency", DEFAULT_TARGET_CURRENCY)
-  if country not in countries:
-    return jsonify({"error": "Unknown country"}), 400
-  if target_currency not in get_supported_currencies():
-    return jsonify({"error": "Unknown target currency"}), 400
-
-  return jsonify({
-    "country": country,
-    "target_currency": target_currency,
-    "data": build_demo_data(country, target_currency)
-  })
 
 @app.route("/api/product_graph_data/<product_group_id>")
 def product_graph_data(product_group_id):
