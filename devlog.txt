@@ -103,3 +103,8 @@ HOME STRETCH CHECKLIST:
 * home page carousel impl :: Bogdan
 * catalog + product graph pages' final finishing touches :: Christine
 ====================================
+
+davidL -- 2026-04-21 00:55
+- revised catalog by filtering single country-exclusive items --> graphs aren't boring and only one x-axis entry
+- scrapped images of products using bsoup once user clicks on catalog item (otherwise +++ waiting time)
+- merged with bogdans carousel, fixed indexing issues
