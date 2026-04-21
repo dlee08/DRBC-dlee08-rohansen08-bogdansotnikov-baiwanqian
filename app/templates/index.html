@@ -82,8 +82,8 @@
               <div class="carousel-item {% if loop.first %}active{% endif %}">
                 <div class="card">
                   <div class="card-body">
-                    <h3 class="card-title">{{ item.name }}</h3>
-                    <p>{{ item.desc }}</p>
+                    <h3 align="center" class="card-title"><a href="{{item.link}}">{{ item.name }}</a></h3>
+                    <p align="center">{{ item.desc }}</p>
                     <p>Price:</p>
                     <div id="saved-chart-{{ loop.index0 }}"></div>
                   </div>

@@ -578,10 +578,12 @@ def get_saved_product_entries(saved_value):
         label = get_product_label(product_group_id)
         name = get_product_name(product_group_id)
         desc = get_product_summary(product_group_id)['product_description']
+        link = f"/product_graph/{name}".lower()
         price = build_product_country_price_data(product_group_id, "USD")
         if label:
             entries.append({
                 "group_id": product_group_id,
+                "link" : link,
                 "label": label,
                 "name": name,
                 "desc": desc,
