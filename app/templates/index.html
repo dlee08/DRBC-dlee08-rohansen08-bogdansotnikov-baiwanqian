@@ -62,12 +62,14 @@
             <h3 class="card-title">Explore:</h3>
               <div class="row">
               <div class="col-6">
+                <img src="{{img1}}">
             <p>{{rand["product_name"].values[0]}}, from {{rand["country"].values[0]}}!</p>
             <p>{{rand["product_type"].values[0]}}</p>
             <p>Local Price: {{rand["price"].values[0]}} {{rand["currency"].values[0]}}</p>
             <a href="/product_graph/{{ featured_group_id }}">Check it out</a>
                   </div>
               <div class="col-6">
+                <img src="{{img2}}">
             <p>{{rand2["product_name"].values[0]}}, from {{rand2["country"].values[0]}}!</p>
             <p>{{rand2["product_type"].values[0]}}</p>
             <p>Local Price: {{rand2["price"].values[0]}} {{rand2["currency"].values[0]}}</p>
@@ -75,14 +77,12 @@
                   </div>
                   </div>
           </div>
-          {% if hasSaved %}
           <div id="savedCarousel" class="carousel slide" data-bs-ride="carousel">
   <div class="carousel-inner">
     {% for item in saved %}
       <div class="carousel-item {% if loop.first %}active{% endif %}">
         <div class="card">
           <div class="card-body">
-            <img src="{{randimg}}">
             <h3 class="card-title">{{ item.name }}</h3>
             <p>{{ item.desc }}</p>
             <p>Price:</p>
@@ -102,7 +102,6 @@
       </div>
     {% endfor %}
   </div>
-{% if savelen > 1 %}
   <button class="carousel-control-prev" type="button" data-bs-target="#savedCarousel" data-bs-slide="prev">
     <span class="carousel-control-prev-icon" aria-hidden="true"></span>
     <span class="visually-hidden">Previous</span>
@@ -112,7 +111,6 @@
     <span class="carousel-control-next-icon" aria-hidden="true"></span>
     <span class="visually-hidden">Next</span>
   </button>
-  {% endif %}
 </div>
         </div>
         </div>

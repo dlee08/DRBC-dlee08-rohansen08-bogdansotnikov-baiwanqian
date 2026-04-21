@@ -751,14 +751,10 @@ def homepage():
     session.pop("u_rowid", None)
     return redirect("/login")
   saved = get_saved_product_entries(saved_value)
-  featured_group_id = make_group_id(str(rand["product_name"].values[0]), "name")
-  if (saved):
-      return render_template("index.html", products=get_product_options(), rand=rand, rand2=rand2,
-          saved=saved, user=user_rows[0][0], featured_group_id=featured_group_id, hasSaved = True)
-  else:
-      return render_template("index.html", products=get_product_options(), rand=rand, rand2=rand2,
-          saved=saved, user=user_rows[0][0], featured_group_id=featured_group_id, hasSaved = False)
-
+  featured_group_id1 = make_group_id(str(rand["product_name"].values[0]), "name")
+  featured_group_id2 = make_group_id(str(rand["product_name"].values[0]), "name")
+  return render_template("index.html", products=get_product_options(), rand=rand, rand2=rand2,
+         saved=saved, user=user_rows[0][0], img1=get_or_fetch_product_image(featured_group_id1), img2=get_or_fetch_product_image(featured_group_id2))
 @app.route("/product_graph", methods=["POST"])
 def product_graph_redirect():
   if not 'u_rowid' in session:
