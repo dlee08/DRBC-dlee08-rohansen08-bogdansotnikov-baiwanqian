@@ -93,3 +93,13 @@ christineC -- 2026-04-20 11:30
 - Minor visual modifications to choropleth and catalog
 - Refactor choropleth code and add rating choropleth map
 - Cache world map data for choropleth
+
+bogdanS -- 2026-04-21 00:12
+- Added a carousel of saved items on front page
+
+HOME STRETCH CHECKLIST:
+------------------------------------
+* bootstrapping :: David & Rohan
+* home page carousel impl :: Bogdan
+* catalog + product graph pages' final finishing touches :: Christine
+====================================
