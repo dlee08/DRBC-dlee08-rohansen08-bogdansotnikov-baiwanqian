@@ -4,12 +4,18 @@
     <meta charset="utf-8">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
     <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>IKEAlyzer</title>
+      <style>
+  .carousel-control-prev-icon,
+  .carousel-control-next-icon {
+    filter: invert(1);
+  }
+</style>
   </head>
   <body class="bg-primary-subtle">
     <nav class="navbar navbar-expand-lg bg-body-tertiary">
@@ -45,6 +51,12 @@
         <div class="col-lg-8">
           <h1 class="mb-3">Welcome to IKEAlyzer, {{ user }}</h1>
           <p class="lead">Find the best deals on IKEA products worldwide.</p>
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+              <h2 class="h4 mb-3">Browse the Catalog</h2>
+              <a href="/catalog" class="btn btn-primary">Go to Catalog</a>
+            </div>
+          </div>
           <div class="card">
           <div class="card-body">
             <h3 class="card-title">Today's Featured Item:</h3>
@@ -53,37 +65,32 @@
             <p>Local Price: {{rand["price"].values[0]}} {{rand["currency"].values[0]}}</p>
             <a href="/product_graph/{{ featured_group_id }}">Check it out</a>
           </div>
-          <div class="card shadow-sm mb-4">
-            <div class="card-body">
-              <h2 class="h4 mb-3">Browse the Catalog</h2>
-              <a href="/catalog" class="btn btn-primary">Go to Catalog</a>
-            </div>
+          <div id="savedCarousel" class="carousel slide" data-bs-ride="carousel">
+  <div class="carousel-inner">
+    {% for item in saved %}
+      <div class="carousel-item {% if loop.first %}active{% endif %}">
+        <div class="card">
+          <div class="card-body">
+            <h3 class="card-title">{{ item.name }}</h3>
+            <p>{{ item.desc }}</p>
+            <p>Price:</p>
+            <div id="saved-chart-{{ loop.index0 }}"></div>
           </div>
-          <div id="carouselExampleIndicators" class="carousel slide" data-ride="carousel">
-            <div class="carousel-inner">
-                {% for item in saved %}
-                  <div class={% if loop.first %} "carousel-item active" {% else %} "carousel-item" {% endif %}>
-                    <div class="card">
-                      <div class="card-body">
-                        <h3 class="card-title">{{item.name}}</h3>
-                        <p>{{item.desc}}</p>
-                        <p>Price:</p>
-                        {% for country in item.price%}
-                        {% if loop.index<5 %}
-                          <p>{{country.country}}: ${{country.price}}</p>
-                        {% endif %}
-                        {% endfor %}
-                      </div>
-                    </div>
-                  </div>
-                {% endfor %}
-            </div>
-            <a class="carousel-control-prev" href="#carouselExampleIndicators" role="button" data-slide="prev" color=#000000>
-                <span font-color="black" class="sr-only">Previous</span>
-            </a>
-            <a class="carousel-control-next" href="#carouselExampleIndicators" role="button" data-slide="next" color=#000000>
-                <span class="sr-only">Next</span>
-            </a>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <button class="carousel-control-prev" type="button" data-bs-target="#savedCarousel" data-bs-slide="prev">
+    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+    <span class="visually-hidden">Previous</span>
+  </button>
+
+  <button class="carousel-control-next" type="button" data-bs-target="#savedCarousel" data-bs-slide="next">
+    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+    <span class="visually-hidden">Next</span>
+  </button>
+</div>
         </div>
         </div>
       </div>
@@ -94,5 +101,68 @@
       <img src="static/logo2.png" width=25>
       <img src="static/logo3.png" width=100>
     </footer>
+    <script>
+  const savedItems = {{ saved|tojson }};
+
+  function renderSavedBarChart(containerId, rows) {
+    const container = document.getElementById(containerId);
+    if (!container || !rows || !rows.length) return;
+
+    const data = rows
+      .filter(d => d.price != null)
+      .slice()
+      .sort((a, b) => b.price - a.price)
+      .slice(0, 6);
+
+    const width = 500;
+    const height = 260;
+    const marginTop = 20;
+    const marginRight = 20;
+    const marginBottom = 70;
+    const marginLeft = 55;
+
+    const svg = d3.create("svg")
+      .attr("viewBox", [0, 0, width, height])
+      .attr("style", "max-width: 100%; height: auto;");
+
+    const x = d3.scaleBand()
+      .domain(data.map(d => d.country))
+      .range([marginLeft, width - marginRight])
+      .padding(0.2);
+
+    const y = d3.scaleLinear()
+      .domain([0, d3.max(data, d => d.price) || 1])
+      .nice()
+      .range([height - marginBottom, marginTop]);
+
+    svg.append("g")
+      .selectAll("rect")
+      .data(data)
+      .join("rect")
+      .attr("x", d => x(d.country))
+      .attr("y", d => y(d.price))
+      .attr("width", x.bandwidth())
+      .attr("height", d => y(0) - y(d.price))
+      .attr("fill", "#0d6efd");
+
+    svg.append("g")
+      .attr("transform", `translate(0,${height - marginBottom})`)
+      .call(d3.axisBottom(x).tickSizeOuter(0))
+      .call(g => g.selectAll("text")
+        .attr("transform", "rotate(-35)")
+        .style("text-anchor", "end"));
+
+    svg.append("g")
+      .attr("transform", `translate(${marginLeft},0)`)
+      .call(d3.axisLeft(y))
+      .call(g => g.select(".domain").remove());
+
+    container.appendChild(svg.node());
+  }
+
+  savedItems.forEach((item, i) => {
+    renderSavedBarChart(`saved-chart-${i}`, item.price);
+  });
+</script>
   </body>
 </html>
