@@ -738,12 +738,19 @@ def get_catalog_items(page=1, limit=51, country=None, category=None, search=None
 def homepage():
   if not 'u_rowid' in session:
   	return redirect("/login")
-  if get_session_user_rowid() is None or get_current_user_saved_value() is None:
+  user_rowid = get_session_user_rowid()
+  saved_value = get_current_user_saved_value()
+  if user_rowid is None or saved_value is None:
     return redirect("/login")
   rand = get_random()
-  saved = get_saved_product_entries(fetch("user_base", "ROWID=?", "saved", (session['u_rowid'][0],))[0][0])
+  user_rows = fetch("user_base", "ROWID=?", "username", (user_rowid,))
+  if not user_rows:
+    session.pop("u_rowid", None)
+    return redirect("/login")
+  saved = get_saved_product_entries(saved_value)
+  featured_group_id = make_group_id(str(rand["product_name"].values[0]), "name")
   return render_template("index.html", products=get_product_options(), rand=rand,
-      saved = saved)
+      saved=saved, user=user_rows[0][0], featured_group_id=featured_group_id)
 
 @app.route("/product_graph", methods=["POST"])
 def product_graph_redirect():
