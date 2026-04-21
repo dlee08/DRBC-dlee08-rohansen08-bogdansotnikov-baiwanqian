@@ -852,16 +852,6 @@ def product_rating_graph_data(product_group_id):
     "data": data
   })
 
-@app.route("/api/choropleth_product/<product_group_id>")
-def choropleth_product(product_group_id):
-    target_currency = request.args.get("target_currency", DEFAULT_TARGET_CURRENCY)
-
-    return jsonify({
-     "product_group_id": product_group_id,
-     "target_currency": target_currency,
-     "data": build_product_country_price_data(product_group_id, target_currency)
-    })
-
 def get_url(curr):
   return f'https://v6.exchangerate-api.com/v6/c608df1404c6c6b0bf2cd5bb/latest/{curr}'
 
