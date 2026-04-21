@@ -87,3 +87,9 @@ christineC -- 2026-04-20 4:50
 - Complete choropleth map w/ legend and tooltip
 - Added choropleth map to product page
 - Removed old product page
+
+christineC -- 2026-04-20 11:30
+- Add View on IKEA button to product summary
+- Minor visual modifications to choropleth and catalog
+- Refactor choropleth code and add rating choropleth map
+- Cache world map data for choropleth
