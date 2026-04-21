@@ -75,32 +75,34 @@
                   </div>
                   </div>
           </div>
+          {% if hasSaved %}
           <div id="savedCarousel" class="carousel slide" data-bs-ride="carousel">
-  <div class="carousel-inner">
-    {% for item in saved %}
-      <div class="carousel-item {% if loop.first %}active{% endif %}">
-        <div class="card">
-          <div class="card-body">
-            <h3 class="card-title">{{ item.name }}</h3>
-            <p>{{ item.desc }}</p>
-            <p>Price:</p>
-            <div id="saved-chart-{{ loop.index0 }}"></div>
+          <div class="carousel-inner">
+            {% for item in saved %}
+              <div class="carousel-item {% if loop.first %}active{% endif %}">
+                <div class="card">
+                  <div class="card-body">
+                    <h3 class="card-title">{{ item.name }}</h3>
+                    <p>{{ item.desc }}</p>
+                    <p>Price:</p>
+                    <div id="saved-chart-{{ loop.index0 }}"></div>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
           </div>
+
+          <button class="carousel-control-prev" type="button" data-bs-target="#savedCarousel" data-bs-slide="prev">
+            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+            <span class="visually-hidden">Previous</span>
+          </button>
+
+          <button class="carousel-control-next" type="button" data-bs-target="#savedCarousel" data-bs-slide="next">
+            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+            <span class="visually-hidden">Next</span>
+          </button>
         </div>
-      </div>
-    {% endfor %}
-  </div>
-
-  <button class="carousel-control-prev" type="button" data-bs-target="#savedCarousel" data-bs-slide="prev">
-    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-    <span class="visually-hidden">Previous</span>
-  </button>
-
-  <button class="carousel-control-next" type="button" data-bs-target="#savedCarousel" data-bs-slide="next">
-    <span class="carousel-control-next-icon" aria-hidden="true"></span>
-    <span class="visually-hidden">Next</span>
-  </button>
-</div>
+        {% endif %}
         </div>
         </div>
       </div>
