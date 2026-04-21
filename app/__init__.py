@@ -743,13 +743,14 @@ def homepage():
   if user_rowid is None or saved_value is None:
     return redirect("/login")
   rand = get_random()
+  rand2 = get_random()
   user_rows = fetch("user_base", "ROWID=?", "username", (user_rowid,))
   if not user_rows:
     session.pop("u_rowid", None)
     return redirect("/login")
   saved = get_saved_product_entries(saved_value)
   featured_group_id = make_group_id(str(rand["product_name"].values[0]), "name")
-  return render_template("index.html", products=get_product_options(), rand=rand,
+  return render_template("index.html", products=get_product_options(), rand=rand, rand2=rand2,
       saved=saved, user=user_rows[0][0], featured_group_id=featured_group_id)
 
 @app.route("/product_graph", methods=["POST"])

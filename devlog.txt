@@ -113,3 +113,4 @@ rohanS -- 2026-04-21 01:37
 - added in charts to the index page for any saved products
 - fixed carousel functionality
 - continued ui/ux improvements
+- expanded explore page

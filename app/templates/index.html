@@ -47,7 +47,7 @@
         </div>
         </nav>
     <div class="container pt-3">
-      <div class="row justify-content-center pt-3">
+      <div class="row justify-content-center pt-3 pb-3">
         <div class="col-lg-8">
           <h1 class="mb-3">Welcome to IKEAlyzer, {{ user }}</h1>
           <p class="lead">Find the best deals on IKEA products worldwide.</p>
@@ -59,11 +59,21 @@
           </div>
           <div class="card">
           <div class="card-body">
-            <h3 class="card-title">Today's Featured Item:</h3>
+            <h3 class="card-title">Explore:</h3>
+              <div class="row">
+              <div class="col-6">
             <p>{{rand["product_name"].values[0]}}, from {{rand["country"].values[0]}}!</p>
             <p>{{rand["product_type"].values[0]}}</p>
             <p>Local Price: {{rand["price"].values[0]}} {{rand["currency"].values[0]}}</p>
             <a href="/product_graph/{{ featured_group_id }}">Check it out</a>
+                  </div>
+              <div class="col-6">
+            <p>{{rand2["product_name"].values[0]}}, from {{rand2["country"].values[0]}}!</p>
+            <p>{{rand2["product_type"].values[0]}}</p>
+            <p>Local Price: {{rand2["price"].values[0]}} {{rand2["currency"].values[0]}}</p>
+            <a href="/product_graph/{{ featured_group_id }}">Check it out</a>
+                  </div>
+                  </div>
           </div>
           <div id="savedCarousel" class="carousel slide" data-bs-ride="carousel">
   <div class="carousel-inner">
