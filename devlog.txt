@@ -94,6 +94,9 @@ christineC -- 2026-04-20 11:30
 - Refactor choropleth code and add rating choropleth map
 - Cache world map data for choropleth
 
+bogdanS -- 2026-04-21 00:12
+- Added a carousel of saved items on front page
+
 HOME STRETCH CHECKLIST:
 ------------------------------------
 * bootstrapping :: David & Rohan
