@@ -15,7 +15,6 @@ app = Flask(__name__)
 DATA_PATH = Path(__file__).resolve().parent / "data" / "IKEA_product_catalog.csv"
 KEY_PATH = Path(__file__).resolve().parent / "keys" / "key_exchangerate-api.txt"
 DB_PATH = Path(__file__).resolve().parent / "data.db"
-MAX_PRODUCT_TYPES = 30
 DEFAULT_TARGET_CURRENCY = "USD"
 CATALOG_SCHEMA_VERSION = 7
 CATALOG_USECOLS = [
@@ -50,7 +49,7 @@ def slugify_product_name(product_name):
     ascii_value = re.sub(r"[^a-z0-9]+", "-", ascii_value)
     return ascii_value.strip("-")
 
-def make_group_id(product_name, anchor_key):
+def make_group_id(product_name):
     return slugify_product_name(product_name)
 
 def display_category(raw):
@@ -212,10 +211,6 @@ def get_conversion_rates(base_currency):
   return payload["conversion_rates"]
 
 
-def get_countries():
-  catalog = get_catalog_df()
-  return sorted(catalog["country"].dropna().astype(str).unique().tolist())
-
 def convert_price(amount, source_currency, target_currency):
   if source_currency == target_currency:
     return amount
@@ -224,10 +219,10 @@ def convert_price(amount, source_currency, target_currency):
 
 def build_product_groups(catalog):
     catalog["product_id"] = catalog["product_id"].astype(str)
-    catalog["product_group_id"] = catalog["product_name"].apply(lambda product_name: make_group_id(product_name, "name"))
+    catalog["product_group_id"] = catalog["product_name"].apply(make_group_id)
     group_rows = []
     for product_name, product_rows in catalog.groupby("product_name", sort=False):
-        group_id = make_group_id(product_name, "name")
+        group_id = make_group_id(product_name)
         description = choose_group_description(product_name, product_rows)
         label = f"{product_name} - {description}" if description else product_name
         representative_url = next(
@@ -500,25 +495,6 @@ def get_or_fetch_product_image(product_group_id):
         update_product_group_image(product_group_id, image_url)
     return image_url
 
-def get_product_options():
-    with get_db_connection() as db:
-        rows = db.execute(
-            "SELECT group_id, product_name, label, product_description, product_page_url, image_url, countries_count "
-            "FROM product_groups ORDER BY label"
-        ).fetchall()
-    return [
-        {
-            "group_id": row[0],
-            "product_name": row[1],
-            "label": row[2],
-            "product_description": row[3],
-            "product_page_url": row[4],
-            "image_url": row[5],
-            "countries_count": row[6],
-        }
-        for row in rows
-    ]
-
 def get_multi_country_group_ids():
     with get_db_connection() as db:
         rows = db.execute(
@@ -526,29 +502,28 @@ def get_multi_country_group_ids():
         ).fetchall()
     return {row[0] for row in rows}
 
-def get_product_label(product_group_id):
+def get_product_group_record(product_group_id):
     with get_db_connection() as db:
         row = db.execute(
-            "SELECT label FROM product_groups WHERE group_id = ?",
+            "SELECT group_id, product_name, label, product_description, product_page_url, image_url, countries_count "
+            "FROM product_groups WHERE group_id = ?",
             (product_group_id,)
         ).fetchone()
     if row is None:
         return None
-    return row[0]
-
-def get_product_name(product_group_id):
-    with get_db_connection() as db:
-        row = db.execute(
-            "SELECT product_name FROM product_groups WHERE group_id = ?",
-            (product_group_id,)
-        ).fetchone()
-    if row is None:
-        return None
-    return row[0]
+    return {
+        "group_id": row[0],
+        "product_name": row[1],
+        "label": row[2],
+        "product_description": row[3],
+        "product_page_url": row[4],
+        "image_url": row[5],
+        "countries_count": row[6],
+    }
 
 def get_product_summary(product_group_id):
-    product_name = get_product_name(product_group_id)
-    if not product_name:
+    group_record = get_product_group_record(product_group_id)
+    if not group_record:
         return None
 
     with get_db_connection() as db:
@@ -557,7 +532,7 @@ def get_product_summary(product_group_id):
             "FROM catalog_items WHERE product_name = ? "
             "ORDER BY CASE WHEN product_description IS NULL OR TRIM(product_description) = '' THEN 1 ELSE 0 END, country "
             "LIMIT 1",
-            (product_name,)
+            (group_record["product_name"],)
         ).fetchone()
     if row is None:
         return None
@@ -581,20 +556,19 @@ def get_saved_product_entries(saved_value):
         return []
     entries = []
     for product_group_id in saved_ids:
-        label = get_product_label(product_group_id)
-        name = get_product_name(product_group_id)
-        desc = get_product_summary(product_group_id)['product_description']
-        link = f"/product_graph/{name}".lower()
+        group_record = get_product_group_record(product_group_id)
+        summary = get_product_summary(product_group_id)
+        if not group_record or not summary:
+            continue
         price = build_product_country_price_data(product_group_id, "USD")
-        if label:
-            entries.append({
-                "group_id": product_group_id,
-                "link" : link,
-                "label": label,
-                "name": name,
-                "desc": desc,
-                "price": price
-            })
+        entries.append({
+            "group_id": product_group_id,
+            "link" : f"/product_graph/{group_record['product_name']}".lower(),
+            "label": group_record["label"],
+            "name": group_record["product_name"],
+            "desc": summary["product_description"],
+            "price": price
+        })
     return entries
 
 def build_product_country_price_data(product_group_id, target_currency):
@@ -626,15 +600,15 @@ def build_product_country_price_data(product_group_id, target_currency):
     ]
 
 def build_product_country_rating_data(product_group_id):
-    product_name = get_product_name(product_group_id)
-    if not product_name:
+    group_record = get_product_group_record(product_group_id)
+    if not group_record:
         return []
 
     with get_db_connection() as db:
         rows = db.execute(
             "SELECT country, product_rating "
             "FROM catalog_items WHERE product_name = ? AND product_rating IS NOT NULL AND product_rating != 'none'",
-            (product_name,)
+            (group_record["product_name"],)
         ).fetchall()
     if not rows:
         return []
@@ -652,7 +626,7 @@ def build_product_country_rating_data(product_group_id):
     return [
         {
             "product_group_id": str(product_group_id),
-            "product_name": product_name,
+            "product_name": group_record["product_name"],
             "country": country,
             "rating": round(values["sum"] / values["count"], 2),
         }
@@ -680,7 +654,7 @@ def get_catalog_items(page=1, limit=50, country=None, category=None, search=None
         ])
 
     grouped = catalog.drop_duplicates(subset="product_name", keep="first").copy()
-    grouped["product_group_id"] = grouped["product_name"].apply(lambda product_name: make_group_id(product_name, "name"))
+    grouped["product_group_id"] = grouped["product_name"].apply(make_group_id)
     grouped = grouped[grouped["product_group_id"].isin(get_multi_country_group_ids())]
     grouped = grouped.sort_values("product_name").reset_index(drop=True)
     grouped["catalog_tags"] = grouped.apply(
@@ -709,21 +683,17 @@ def get_catalog_items(page=1, limit=50, country=None, category=None, search=None
 def homepage():
   if not 'u_rowid' in session:
   	return redirect("/login")
-  user_rowid = get_session_user_rowid()
-  saved_value = get_current_user_saved_value()
-  if user_rowid is None or saved_value is None:
+  user_record = get_current_user_record("rowid, username, saved")
+  if user_record is None:
     return redirect("/login")
+  saved_value = user_record[2]
   rand = get_random()
   rand2 = get_random()
-  user_rows = fetch("user_base", "ROWID=?", "username", (user_rowid,))
-  if not user_rows:
-    session.pop("u_rowid", None)
-    return redirect("/login")
   saved = get_saved_product_entries(saved_value)
-  featured_group_id1 = make_group_id(str(rand["product_name"].values[0]), "name")
-  featured_group_id2 = make_group_id(str(rand2["product_name"].values[0]), "name")
-  return render_template("index.html", products=get_product_options(), rand=rand, rand2=rand2,
-         saved=saved, user=user_rows[0][0], img1=get_or_fetch_product_image(featured_group_id1), img2=get_or_fetch_product_image(featured_group_id2),
+  featured_group_id1 = make_group_id(str(rand["product_name"].values[0]))
+  featured_group_id2 = make_group_id(str(rand2["product_name"].values[0]))
+  return render_template("index.html", rand=rand, rand2=rand2,
+         saved=saved, user=user_record[1], img1=get_or_fetch_product_image(featured_group_id1), img2=get_or_fetch_product_image(featured_group_id2),
          featured_group_id1=featured_group_id1, featured_group_id2=featured_group_id2)
 
 
@@ -740,17 +710,18 @@ def product_graph_redirect():
 def product_graph(product_group_id):
     if not 'u_rowid' in session:
         return redirect("/login")
-    saved_value = get_current_user_saved_value()
-    if saved_value is None:
+    user_record = get_current_user_record("saved")
+    if user_record is None:
         return redirect("/login")
+    saved_value = user_record[0]
     supported_currencies = get_supported_currencies()
     price_chart_data = build_product_country_price_data(product_group_id, DEFAULT_TARGET_CURRENCY)
     if not price_chart_data:
         return redirect("/")
     rating_chart_data = build_product_country_rating_data(product_group_id)
 
-    product_label = get_product_label(product_group_id)
-    if not product_label:
+    group_record = get_product_group_record(product_group_id)
+    if not group_record:
         return redirect("/")
     product_summary = get_product_summary(product_group_id)
     product_image_url = get_or_fetch_product_image(product_group_id)
@@ -759,7 +730,6 @@ def product_graph(product_group_id):
     return render_template(
         "product_country_graph.html",
         product_group_id=product_group_id,
-        product_label=product_label,
         product_summary=product_summary,
         product_image_url=product_image_url,
         is_saved=is_saved,
@@ -774,18 +744,11 @@ def save_product(product_group_id):
     if 'u_rowid' not in session:
         return redirect("/login")
 
-    user_rowid = get_session_user_rowid()
-    saved_value = get_current_user_saved_value()
-    if user_rowid is None or saved_value is None:
+    user_record = get_current_user_record("rowid, saved")
+    if user_record is None:
         return redirect("/login")
-    saved_items = parse_saved_items(saved_value)
-    if product_group_id not in saved_items and get_product_label(product_group_id):
-        updated_saved = ", ".join(saved_items + [product_group_id]) if saved_items else product_group_id
-        db = get_db_connection()
-        c = db.cursor()
-        c.execute("UPDATE user_base SET saved = ? WHERE ROWID = ?", (updated_saved, user_rowid))
-        db.commit()
-        db.close()
+    user_rowid, saved_value = user_record
+    update_saved_items(user_rowid, saved_value, product_group_id, "add")
 
     return redirect(f"/product_graph/{product_group_id}")
 
@@ -794,20 +757,11 @@ def remove_saved_product(product_group_id):
     if 'u_rowid' not in session:
         return redirect("/login")
 
-    user_rowid = get_session_user_rowid()
-    saved_value = get_current_user_saved_value()
-    if user_rowid is None or saved_value is None:
+    user_record = get_current_user_record("rowid, saved")
+    if user_record is None:
         return redirect("/login")
-
-    saved_items = parse_saved_items(saved_value)
-    updated_items = [item for item in saved_items if item != product_group_id]
-    updated_saved = ", ".join(updated_items) if updated_items else " "
-
-    with get_db_connection() as db:
-        db.execute(
-            "UPDATE user_base SET saved = ? WHERE ROWID = ?",
-            (updated_saved, user_rowid)
-        )
+    user_rowid, saved_value = user_record
+    update_saved_items(user_rowid, saved_value, product_group_id, "remove")
 
     return redirect(f"/profile/{user_rowid}")
 
@@ -853,18 +807,19 @@ def logout():
 def profileDefault():
     if not 'u_rowid' in session:
         return redirect("/login")
-    user_rowid = get_session_user_rowid()
-    if user_rowid is None:
+    user_record = get_current_user_record("rowid")
+    if user_record is None:
         return redirect("/login")
-    return redirect(f"/profile/{user_rowid}")
+    return redirect(f"/profile/{user_record[0]}")
 
 @app.route('/profile/<u_rowid>', methods=["GET", "POST"]) # makes u_rowid a variable that is passed to the function
 def profile(u_rowid):
     if not 'u_rowid' in session:
         return redirect("/login")
-    current_user_rowid = get_session_user_rowid()
-    if current_user_rowid is None:
+    user_record = get_current_user_record("rowid, username, password, saved, creation_date")
+    if user_record is None:
         return redirect("/login")
+    current_user_rowid = user_record[0]
     if str(current_user_rowid) != str(u_rowid):
         return redirect(f"/profile/{current_user_rowid}")
 
@@ -873,43 +828,29 @@ def profile(u_rowid):
     if request.method == "POST":
         old_password = request.form.get("old_password", "")
         new_password = request.form.get("new_password", "")
-        password_rows = fetch('user_base', "ROWID=?", 'password', (u_rowid,))
-        if not password_rows:
-            session.pop("u_rowid", None)
-            return redirect("/login")
-        u_password = password_rows[0][0]
+        u_password = user_record[2]
 
         if old_password != u_password:
             error = "Old password is incorrect."
         elif not new_password:
             error = "New password cannot be empty."
         else:
-            db = get_db_connection()
-            c = db.cursor()
-            c.execute("UPDATE user_base SET password = ? WHERE ROWID = ?", (new_password, u_rowid))
-            db.commit()
-            db.close()
+            execute_db("UPDATE user_base SET password = ? WHERE ROWID = ?", (new_password, u_rowid))
             success = "Password updated successfully."
+            user_record = (user_record[0], user_record[1], new_password, user_record[3], user_record[4])
 
-    user_rows = fetch('user_base', "ROWID=?", 'username, password, creation_date, saved', (u_rowid,))
-    if not user_rows:
-        session.pop("u_rowid", None)
-        return redirect("/login")
-    u_data = user_rows[0]
     return render_template("profile.html",
-        username=u_data[0],
-        password=u_data[1],
-        creation_date=u_data[2],
-        saved_items=get_saved_product_entries(u_data[3]),
+        username=user_record[1],
+        password=user_record[2],
+        creation_date=user_record[4],
+        saved_items=get_saved_product_entries(user_record[3]),
         error=error,
         success=success)
 
 
 @app.route("/catalog")
 def catalog():
-    countries = get_countries()
     categories = get_categories()
-    selected_country = request.args.get("country", "")
     selected_category = request.args.get("category", "")
     search = request.args.get("search", "")
     page = int(request.args.get("page", 1))
@@ -918,16 +859,13 @@ def catalog():
     items, total = get_catalog_items(
         page=page,
         limit=limit,
-        country=selected_country or None,
         category=selected_category or None,
         search=search or None
     )
     return render_template(
         "catalog.html",
         items=items,
-        countries=countries,
         categories=categories,
-        selected_country=selected_country,
         selected_category=selected_category,
         search=search,
         page=page,
@@ -935,23 +873,6 @@ def catalog():
         has_next=page*limit < total,
         total=total
     )
-
-@app.route("/save/<product_id>", methods=["GET"])
-def cave(product_id):
-    if 'u_rowid' in session:
-        user_rowid = get_session_user_rowid()
-        saved_value = get_current_user_saved_value()
-        if user_rowid is None or saved_value is None:
-            return redirect("/login")
-        if product_id not in saved_value.split(", "):
-            db = get_db_connection()
-            c = db.cursor()
-            c.execute("UPDATE user_base SET saved = ? WHERE ROWID=?",
-                (fetch("user_base", f"ROWID={user_rowid}", "saved")[0][0] + ", " + product_id,
-                    user_rowid))
-            db.commit()
-            db.close()
-    return redirect(f"/product/{product_id}")
 
 
 @app.route("/api/product_graph_data/<product_group_id>")
@@ -982,14 +903,12 @@ def product_rating_graph_data(product_group_id):
   })
 
 def fetch(table, criteria, data, params = ()):
-    db = get_db_connection()
-    c = db.cursor()
-    query = f"SELECT {data} FROM {table} WHERE {criteria}"
-    c.execute(query, params)
-    data = c.fetchall()
-    db.commit()
-    db.close()
-    return data
+    with get_db_connection() as db:
+        return db.execute(f"SELECT {data} FROM {table} WHERE {criteria}", params).fetchall()
+
+def execute_db(query, params=()):
+    with get_db_connection() as db:
+        db.execute(query, params)
 
 def get_session_user_rowid():
     raw_user_id = session.get("u_rowid")
@@ -997,15 +916,27 @@ def get_session_user_rowid():
         return raw_user_id[0] if raw_user_id else None
     return raw_user_id
 
-def get_current_user_saved_value():
+def get_current_user_record(columns="rowid, username, password, saved, creation_date"):
     user_rowid = get_session_user_rowid()
     if user_rowid is None:
         return None
-    saved_rows = fetch('user_base', "ROWID=?", 'saved', (user_rowid,))
-    if not saved_rows:
+    user_rows = fetch('user_base', "ROWID=?", columns, (user_rowid,))
+    if not user_rows:
         session.pop("u_rowid", None)
         return None
-    return saved_rows[0][0]
+    return user_rows[0]
+
+def update_saved_items(user_rowid, saved_value, product_group_id, action):
+    saved_items = parse_saved_items(saved_value)
+    if action == "add":
+        if product_group_id in saved_items or not get_product_group_record(product_group_id):
+            return saved_value
+        updated_saved = ", ".join(saved_items + [product_group_id]) if saved_items else product_group_id
+    else:
+        updated_items = [item for item in saved_items if item != product_group_id]
+        updated_saved = ", ".join(updated_items) if updated_items else " "
+    execute_db("UPDATE user_base SET saved = ? WHERE ROWID = ?", (updated_saved, user_rowid))
+    return updated_saved
 
 def create_user(username, password):
     db = get_db_connection()
