@@ -98,14 +98,15 @@
             <a href="/logout" class="ps-4 btn">Logout</a>
           </form>
         </div>
-        </div>
-        </nav>
+      </div>
+    </nav>
+
     <div class="container pt-3">
       <div class="row justify-content-center pt-3 pb-3">
         <div class="col-lg-8">
           <h1 class="title-content mb-3">Welcome to IKEAlyzer, {{ user }}.</h1>
           <p class="title-content mb-4 lead">Find the best deals on IKEA products worldwide.</p>
-        <div class="card shadow-sm mb-4">
+          <div class="card shadow-sm mb-4">
             <div class="card-body text-center">
               <h2 class="h3 mb-3 section-title">Browse the Catalog</h2>
               <div class="py-1">
@@ -113,67 +114,68 @@
               </div>
             </div>
           </div>
+
           <div class="card shadow-sm mb-4">
-          <div class="card-body">
-            <div class="text-center">
-              <h3 class="card-title h3 mb-4 section-title">Explore</h3>
-            </div>
-            <div class="row g-4">
-            <div class="col-6 text-center explore-item">
-              <img src="{{ img1 }}" class="img-fluid w-100 rounded mb-3" style="height:300px; object-fit:contain;">
-              <p class="fw-semibold mb-1">{{rand["product_name"].values[0]}}, from {{rand["country"].values[0]}}!</p>
-              <p class="text-muted mb-1">{{rand["product_type"].values[0]}}</p>
-              <p class="mb-3">Local Price: {{rand["price"].values[0]}} {{rand["currency"].values[0]}}</p>
-              <a href="/product_graph/{{ featured_group_id1 }}" class="btn btn-outline-primary btn-sm">Check it out</a>
-            </div>
-            <div class="col-6 text-center explore-item">
-              <img src="{{ img2 }}" class="img-fluid w-100 rounded mb-3" style="height:300px; object-fit:contain;">
-              <p class="fw-semibold mb-1">{{rand2["product_name"].values[0]}}, from {{rand2["country"].values[0]}}!</p>
-              <p class="text-muted mb-1">{{rand2["product_type"].values[0]}}</p>
-              <p class="mb-3">Local Price: {{rand2["price"].values[0]}} {{rand2["currency"].values[0]}}</p>
-              <a href="/product_graph/{{ featured_group_id2 }}" class="btn btn-outline-primary btn-sm">Check it out</a>
+            <div class="card-body">
+              <div class="text-center">
+                <h3 class="card-title h3 mb-4 section-title">Explore</h3>
+              </div>
+              <div class="row g-4">
+                <div class="col-6 text-center explore-item">
+                  <img src="{{ img1 }}" class="img-fluid w-100 rounded mb-3" style="height:300px; object-fit:contain;">
+                  <p class="fw-semibold mb-1">{{rand["product_name"].values[0]}}, from {{rand["country"].values[0]}}!</p>
+                  <p class="text-muted mb-1">{{rand["product_type"].values[0]}}</p>
+                  <p class="mb-3">Local Price: {{rand["price"].values[0]}} {{rand["currency"].values[0]}}</p>
+                  <a href="/product_graph/{{ featured_group_id1 }}" class="btn btn-outline-primary btn-sm">Check it out</a>
+                </div>
+                <div class="col-6 text-center explore-item">
+                  <img src="{{ img2 }}" class="img-fluid w-100 rounded mb-3" style="height:300px; object-fit:contain;">
+                  <p class="fw-semibold mb-1">{{rand2["product_name"].values[0]}}, from {{rand2["country"].values[0]}}!</p>
+                  <p class="text-muted mb-1">{{rand2["product_type"].values[0]}}</p>
+                  <p class="mb-3">Local Price: {{rand2["price"].values[0]}} {{rand2["currency"].values[0]}}</p>
+                  <a href="/product_graph/{{ featured_group_id2 }}" class="btn btn-outline-primary btn-sm">Check it out</a>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-        <div id="savedCarousel" class="carousel slide" data-bs-ride="carousel">
-  <div class="carousel-inner">
-    {% for item in saved %}
-      <div class="carousel-item {% if loop.first %}active{% endif %}">
-        <div class="card">
-          <div class="card-body">
-            <h3 class="card-title">{{ item.name }}</h3>
-            <p>{{ item.desc }}</p>
-            <p>Price:</p>
-            <div id="saved-chart-{{ loop.index0 }}"></div>
+
+          <div class="card shadow-sm mb-5">
+           <div class="card-body">
+             <div class="text-center">
+               <h3 class="h3 mb-4 section-title">Saved Items</h3>
+             </div>
+             <div id="savedCarousel" class="carousel slide" data-bs-ride="carousel">
+               <div class="carousel-inner">
+                 {% for item in saved %}
+                 <div class="carousel-item {% if loop.first %}active{% endif %}">
+                  <div class="card">
+                    <div class="card-body">
+                      <h3 class="card-title">{{ item.name }}</h3>
+                      <p>{{ item.desc }}</p>
+                      <p>Price:</p>
+                      <div id="saved-chart-{{ loop.index0 }}"></div>
+                    </div>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+              <button class="carousel-control-prev" type="button" data-bs-target="#savedCarousel" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Previous</span>
+              </button>
+
+              <button class="carousel-control-next" type="button" data-bs-target="#savedCarousel" data-bs-slide="next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Next</span>
+              </button>
+            </div>
+
           </div>
-
-          <button class="carousel-control-prev" type="button" data-bs-target="#savedCarousel" data-bs-slide="prev">
-            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-            <span class="visually-hidden">Previous</span>
-          </button>
-
-          <button class="carousel-control-next" type="button" data-bs-target="#savedCarousel" data-bs-slide="next">
-            <span class="carousel-control-next-icon" aria-hidden="true"></span>
-            <span class="visually-hidden">Next</span>
-          </button>
-        </div>
-      </div>
-    {% endfor %}
-  </div>
-  <button class="carousel-control-prev" type="button" data-bs-target="#savedCarousel" data-bs-slide="prev">
-    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-    <span class="visually-hidden">Previous</span>
-  </button>
-
-  <button class="carousel-control-next" type="button" data-bs-target="#savedCarousel" data-bs-slide="next">
-    <span class="carousel-control-next-icon" aria-hidden="true"></span>
-    <span class="visually-hidden">Next</span>
-  </button>
-</div>
-        </div>
         </div>
       </div>
     </div>
+  </div>
+
     <footer class="text-center fixed-bottom bg-white">
       <span class="h6">Thank you to our generous sponsors:</span>
       <a href="https://palantir.com"><img src="static/logo.jpg" width=100></a>
