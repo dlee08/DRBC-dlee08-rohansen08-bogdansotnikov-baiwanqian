@@ -140,3 +140,15 @@ davidL -- 2026-04-21 21:05
 
 rohanS -- 2026-04-21 20:20
 -fiddled around server-side to make things load
+
+davidL -- 2026-04-22 00:36
+-final passover, removed all helper functions that are unused (from demo graphs, demo chloropleth, unused imports, etc.)
+
+NOTABLE DESIGN REVISIONS:
+------------------------------------
+-some ikea items didnt have images since the url was faulty, couldn't render images for that and left it blank (skipped image rendering for this)
+-scraping ALL 50 images for the first page of the catalog took too much time and caused the service to never load, so we had to resort to only scraping the image of a clicked catalog item and then updating the DB so the next time around, it'd be faster
+-didn't implement some profile features (bio, viewing others' properly, etc.) due to running out of time in the end
+-didn't use bootstrap to the maximal extent due to time constraint on profile, home page
+-everything else was basically according to plan to DD
+====================================

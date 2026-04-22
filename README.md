@@ -10,6 +10,14 @@ A Flask application backed by SQLite3 which allows users to dynamically compare 
 
 #### Visit our live site at [http://104.236.89.211/](http://104.236.89.211/)
 
+### FEATURE SPOTLIGHT
+* Play around with the graphs and adjustable features of the D3 graphs for each item!
+* Try counting how many total items we have by pressing the next page infinite times! (Joke... after parsing and removing incomplete entries, we believe there are around 4000 product groups! You can try checking every item, though, to see if we missed any incomplete entries and they bypassed our testing...)
+
+### KNOWN BUGS/ISSUES
+* Some images on the server-side host will not load because IKEA sometimes presumably flags the VM trying to scrape the IKEA product image (since every image has a unique path for the product group) as a bot (which is kind of true?) and so no image URL is returned.
+* Everything else is in working order, maybe be slow the first time around when you serve on localhost for the first time and populate the db.
+
 ## Install guide
 1) Clone the repo into a local directory:
 ```
@@ -50,3 +58,4 @@ deactivate
 1) Run the app through Flask:
 ```
 python app/__init__.py
+

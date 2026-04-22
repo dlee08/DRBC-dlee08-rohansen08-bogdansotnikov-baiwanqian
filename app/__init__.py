@@ -1,6 +1,5 @@
 from functools import lru_cache
 from pathlib import Path
-import hashlib
 import re
 import unicodedata
 from datetime import date
@@ -10,7 +9,6 @@ import requests
 import pandas as pd
 from flask import Flask, jsonify, render_template, request, session, redirect
 import json
-import urllib.request as urllib
 from bs4 import BeautifulSoup
 
 app = Flask(__name__)
@@ -53,9 +51,7 @@ def slugify_product_name(product_name):
     return ascii_value.strip("-")
 
 def make_group_id(product_name, anchor_key):
-    if anchor_key == "name":
-        return slugify_product_name(product_name)
-    return hashlib.md5(f"{product_name}|{anchor_key}".encode("utf-8")).hexdigest()
+    return slugify_product_name(product_name)
 
 def display_category(raw):
     if not raw:
@@ -88,9 +84,6 @@ def load_catalog_source_csv():
 def catalog_query_df(query, params=()):
     with get_db_connection() as db:
         return pd.read_sql_query(query, db, params=params)
-
-def load_catalog():
-    return get_catalog_df().copy()
 
 @lru_cache(maxsize=1)
 def get_catalog_df():
@@ -228,10 +221,6 @@ def convert_price(amount, source_currency, target_currency):
     return amount
   rates = get_conversion_rates(source_currency)
   return amount * rates[target_currency]
-
-def get_product_types():
-    catalog = load_catalog()
-    return sorted(catalog["product_type"].dropna().astype(str).unique().tolist())
 
 def build_product_groups(catalog):
     catalog["product_id"] = catalog["product_id"].astype(str)
@@ -511,27 +500,6 @@ def get_or_fetch_product_image(product_group_id):
         update_product_group_image(product_group_id, image_url)
     return image_url
 
-def populate_missing_group_images(group_ids):
-    media_map = fetch_product_group_media(group_ids)
-    updates = []
-    for group_id in group_ids:
-        media = media_map.get(group_id)
-        if not media or media["image_url"] or not media["product_page_url"]:
-            continue
-        image_url = extract_image_url(media["product_page_url"])
-        if image_url:
-            updates.append((image_url, group_id))
-
-    if updates:
-        with get_db_connection() as db:
-            db.executemany(
-                "UPDATE product_groups SET image_url = ? WHERE group_id = ?",
-                updates
-            )
-
-    return fetch_product_group_media(group_ids)
-
-
 def get_product_options():
     with get_db_connection() as db:
         rows = db.execute(
@@ -628,43 +596,6 @@ def get_saved_product_entries(saved_value):
                 "price": price
             })
     return entries
-
-def build_demo_data(country, target_currency):
-  catalog = get_catalog_df()
-  filtered = catalog[catalog["country"] == country].dropna(subset=["product_type", "price", "currency"]).copy()
-  top_product_types = (
-    filtered["product_type"]
-    .value_counts()
-    .head(MAX_PRODUCT_TYPES)
-    .index
-  )
-  filtered = filtered[filtered["product_type"].isin(top_product_types)]
-  filtered["price"] = filtered.apply(
-    lambda row: convert_price(row["price"], row["currency"], target_currency),
-    axis=1
-  )
-  grouped = (
-    filtered.groupby("product_type", as_index=False)["price"]
-    .mean()
-    .sort_values("price", ascending=False)
-  )
-  grouped["price"] = grouped["price"].round(2)
-  return grouped.to_dict(orient="records")
-
-def build_choropleth_data(product_type, target_currency):
-  catalog = get_catalog_df()
-  filtered = catalog[catalog["product_type"] == product_type].dropna(subset=["country", "price", "currency"]).copy()
-  filtered["price"] = filtered.apply(
-      lambda row: convert_price(row["price"], row["currency"], target_currency),
-      axis=1
-  )
-  grouped = (
-    filtered.groupby("country", as_index=False)["price"]
-    .mean()
-    .sort_values("price", ascending=False)
-  )
-  grouped["price"] = grouped["price"].round(2)
-  return grouped.to_dict(orient="records")
 
 def build_product_country_price_data(product_group_id, target_currency):
     with get_db_connection() as db:
@@ -1049,20 +980,6 @@ def product_rating_graph_data(product_group_id):
     "product_group_id": product_group_id,
     "data": data
   })
-
-def get_url(curr):
-  return f'https://v6.exchangerate-api.com/v6/c608df1404c6c6b0bf2cd5bb/latest/{curr}'
-
-@app.route("/api_testing")
-def api_testing():
-  with urllib.urlopen(get_url("AED")) as response:
-    json_data = response.read()
-
-  apod_data = json.loads(json_data)
-
-  json_string = json.dumps(apod_data, indent=2)
-  print(json_string)
-  return json_string
 
 def fetch(table, criteria, data, params = ()):
     db = get_db_connection()
