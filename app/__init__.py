@@ -74,6 +74,7 @@ def display_category(raw):
         return "Decor"
     return "Other"
 
+# BEGIN CSV TO SQLITE CATALOG PROCESSING SECTION
 def load_catalog_source_csv():
     catalog = pd.read_csv(DATA_PATH, usecols=CATALOG_USECOLS)
     catalog["product_id"] = catalog["product_id"].astype(str)
@@ -124,6 +125,7 @@ def choose_group_description(product_name, product_rows):
     descriptions = sorted(set(descriptions), key=lambda description: (len(description), description.lower()))
     return descriptions[0]
 
+# BEGIN BEAUTIFULSOUP IMAGE SCRAPING SECTION
 def extract_image_url(product_url):
     if not product_url:
         return None
@@ -178,6 +180,7 @@ def extract_image_url(product_url):
                     return first_image
 
     return None
+# END BEAUTIFULSOUP IMAGE SCRAPING SECTION
 
 
 def load_exchange_rate_api_key():
@@ -451,6 +454,7 @@ def ensure_catalog_db():
         rebuild_catalog_db()
 
 ensure_catalog_db()
+# END CSV TO SQLITE CATALOG PROCESSING SECTION
 
 def get_random():
     catalog_s = get_catalog_df()
