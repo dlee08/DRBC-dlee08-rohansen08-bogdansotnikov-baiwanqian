@@ -122,14 +122,18 @@
               </div>
               <div class="row g-4">
                 <div class="col-6 text-center explore-item">
+                    {% if img1 %}
                   <img src="{{ img1 }}" class="img-fluid w-100 rounded mb-3" style="height:300px; object-fit:contain;">
+                    {% endif %}
                   <p class="fw-semibold mb-1">{{rand["product_name"].values[0]}}, from {{rand["country"].values[0]}}!</p>
                   <p class="text-muted mb-1">{{rand["product_type"].values[0]}}</p>
                   <p class="mb-3">Local Price: {{rand["price"].values[0]}} {{rand["currency"].values[0]}}</p>
                   <a href="/product_graph/{{ featured_group_id1 }}" class="btn btn-outline-primary btn-sm">Check it out</a>
                 </div>
                 <div class="col-6 text-center explore-item">
+                    {% if img1 %}
                   <img src="{{ img2 }}" class="img-fluid w-100 rounded mb-3" style="height:300px; object-fit:contain;">
+                     {% endif %}
                   <p class="fw-semibold mb-1">{{rand2["product_name"].values[0]}}, from {{rand2["country"].values[0]}}!</p>
                   <p class="text-muted mb-1">{{rand2["product_type"].values[0]}}</p>
                   <p class="mb-3">Local Price: {{rand2["price"].values[0]}} {{rand2["currency"].values[0]}}</p>
