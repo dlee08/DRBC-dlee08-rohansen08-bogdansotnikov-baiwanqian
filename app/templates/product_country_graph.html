@@ -165,8 +165,8 @@
 
       <div class="card shadow-sm mt-4">
         <div class="card-body p-4">
-          <h2 class="h4 mb-4 section-title">Relative Price + Rating by Country</h2>
-          <p class="text-muted mb-3">Stacked bars compare normalized price and rating on a shared relative scale.</p>
+          <h2 class="h4 mb-4 section-title">Relative Affordability + Rating by Country</h2>
+          <p class="text-muted mb-3">Stacked bars compare normalized affordability and rating on a shared relative scale, where lower price counts as better.</p>
           <div class="row g-3 align-items-end mb-4">
             <div class="col-md-4">
               <label for="stacked-order-select" class="form-label">Order</label>
@@ -292,8 +292,23 @@
         }));
       }
 
+      function normalizeAffordability(rows) {
+        const minPrice = d3.min(rows, (row) => row.price);
+        const maxPrice = d3.max(rows, (row) => row.price);
+        if (minPrice == null || maxPrice == null) {
+          return rows.map((row) => ({ ...row, affordability: 0 }));
+        }
+        if (maxPrice === minPrice) {
+          return rows.map((row) => ({ ...row, affordability: 1 }));
+        }
+        return rows.map((row) => ({
+          ...row,
+          affordability: (maxPrice - row.price) / (maxPrice - minPrice)
+        }));
+      }
+
       function buildStackedData(priceRows, ratingRows) {
-        const normalizedPrices = normalizeMetric(priceRows, "price");
+        const normalizedPrices = normalizeAffordability(priceRows);
         const normalizedRatings = normalizeMetric(ratingRows, "rating");
 
         const priceByCountry = new Map(normalizedPrices.map((row) => [row.country, row]));
@@ -309,9 +324,9 @@
 
         return completeCountries.map((country) => ({
           country,
-          priceRelative: priceByCountry.get(country).price,
+          affordabilityRelative: priceByCountry.get(country).affordability,
           ratingRelative: ratingByCountry.get(country).rating,
-          totalRelative: priceByCountry.get(country).price + ratingByCountry.get(country).rating
+          totalRelative: priceByCountry.get(country).affordability + ratingByCountry.get(country).rating
         }));
       }
 
@@ -322,9 +337,9 @@
         const marginRight = 20;
         const marginBottom = 140;
         const marginLeft = 80;
-        const keys = ["priceRelative", "ratingRelative"];
+        const keys = ["affordabilityRelative", "ratingRelative"];
         const colors = {
-          priceRelative: "#0d6efd",
+          affordabilityRelative: "#0d6efd",
           ratingRelative: "#fd7e14"
         };
 
@@ -350,7 +365,7 @@
           .attr("transform", `translate(${marginLeft}, ${height - 32})`);
 
         const legendItems = [
-          { key: "priceRelative", label: "Relative price" },
+          { key: "affordabilityRelative", label: "Relative affordability" },
           { key: "ratingRelative", label: "Relative rating" }
         ];
 

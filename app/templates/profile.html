@@ -90,7 +90,7 @@
           {% endif %}
 
           <p><strong>Username:</strong> {{ username }}</p>
-          <p><strong>Password:</strong> {{ password }}</p>
+          <p><strong>Password:</strong> {{ "*" * (password|length) }}</p>
           <p><strong>Creation date:</strong> {{ creation_date }}</p>
           <p class="mb-2"><strong>Saved items:</strong></p>
           {% if saved_items %}

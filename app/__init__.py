@@ -695,7 +695,7 @@ def get_categories():
     catalog = get_catalog_df()
     return sorted(catalog["display_category"].dropna().unique())
 
-def get_catalog_items(page=1, limit=51, country=None, category=None, search=None):
+def get_catalog_items(page=1, limit=50, country=None, category=None, search=None):
     catalog = get_catalog_df()
     if category:
         catalog = catalog[catalog["display_category"] == category]
@@ -923,7 +923,7 @@ def catalog():
     selected_category = request.args.get("category", "")
     search = request.args.get("search", "")
     page = int(request.args.get("page", 1))
-    limit = 51;
+    limit = 50;
 
     items, total = get_catalog_items(
         page=page,

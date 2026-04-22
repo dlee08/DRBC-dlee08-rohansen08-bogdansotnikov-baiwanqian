@@ -126,3 +126,8 @@ bogdanS -- 2026-04-21 11:15
 christineC -- 2026-04-21 18:46
 - A lot of CSS
 - Some animations
+
+davidL -- 2026-04-21 21:05
+- fixed method of calculating relative price + rating stacked bar graph (inverted price so affordability metric = 1 - actual price / max price)
+- adjusted catalog cell ui
+- fixed profile password explicitly showing
