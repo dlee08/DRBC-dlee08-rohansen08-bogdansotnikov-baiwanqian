@@ -123,6 +123,9 @@ bogdanS -- 2026-04-21 11:15
 - made saved only show up on homepage if user has saved items
 - added link to saved showcase
 
+rohanS -- 2026-04-21 11:16
+- added images to homepage for explore tab
+
 christineC -- 2026-04-21 18:46
 - A lot of CSS
 - Some animations
@@ -131,3 +134,6 @@ davidL -- 2026-04-21 21:05
 - fixed method of calculating relative price + rating stacked bar graph (inverted price so affordability metric = 1 - actual price / max price)
 - adjusted catalog cell ui
 - fixed profile password explicitly showing
+
+rohanS -- 2026-04-21 20:20
+-fiddled around server-side to make things load
