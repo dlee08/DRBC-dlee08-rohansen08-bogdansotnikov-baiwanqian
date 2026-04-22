@@ -1,4 +1,4 @@
-# InfiniteIKEA by Da Real Big Cool
+# IKEAlyzer by Da Real Big Cool
 ## Roster: 
 David Lee - Project Manager (PM) </br>
 Rohan Sen - F Student (innovator) </br>
