@@ -272,20 +272,41 @@ def build_product_groups(catalog):
 
 def init_user_db():
     with get_db_connection() as db:
-        db.execute("CREATE TABLE IF NOT EXISTS user_base(username TEXT, password TEXT, path TEXT, saved TEXT);")
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS user_base("
+            "username TEXT, "
+            "password TEXT, "
+            "saved TEXT, "
+            "creation_date TEXT)"
+        )
         columns = {
             row[1]
             for row in db.execute("PRAGMA table_info(user_base)").fetchall()
         }
+        if "path" in columns or "bio" in columns:
+            db.execute("ALTER TABLE user_base RENAME TO user_base_old")
+            db.execute(
+                "CREATE TABLE user_base("
+                "username TEXT, "
+                "password TEXT, "
+                "saved TEXT, "
+                "creation_date TEXT)"
+            )
+            db.execute(
+                "INSERT INTO user_base(username, password, saved, creation_date) "
+                "SELECT username, password, saved, creation_date FROM user_base_old"
+            )
+            db.execute("DROP TABLE user_base_old")
+            columns = {
+                row[1]
+                for row in db.execute("PRAGMA table_info(user_base)").fetchall()
+            }
         if "creation_date" not in columns:
             db.execute("ALTER TABLE user_base ADD COLUMN creation_date TEXT")
             db.execute(
                 "UPDATE user_base SET creation_date = ? WHERE creation_date IS NULL",
                 (date.today().isoformat(),)
             )
-        if "bio" not in columns:
-            db.execute("ALTER TABLE user_base ADD COLUMN bio TEXT")
-            db.execute("UPDATE user_base SET bio = '' WHERE bio IS NULL")
 
 def catalog_db_is_fresh():
     if not DB_PATH.exists():
@@ -837,6 +858,28 @@ def save_product(product_group_id):
 
     return redirect(f"/product_graph/{product_group_id}")
 
+@app.route("/remove_saved_product/<product_group_id>", methods=["GET"])
+def remove_saved_product(product_group_id):
+    if 'u_rowid' not in session:
+        return redirect("/login")
+
+    user_rowid = get_session_user_rowid()
+    saved_value = get_current_user_saved_value()
+    if user_rowid is None or saved_value is None:
+        return redirect("/login")
+
+    saved_items = parse_saved_items(saved_value)
+    updated_items = [item for item in saved_items if item != product_group_id]
+    updated_saved = ", ".join(updated_items) if updated_items else " "
+
+    with get_db_connection() as db:
+        db.execute(
+            "UPDATE user_base SET saved = ? WHERE ROWID = ?",
+            (updated_saved, user_rowid)
+        )
+
+    return redirect(f"/profile/{user_rowid}")
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
   if request.method == 'POST':
@@ -917,7 +960,7 @@ def profile(u_rowid):
             db.close()
             success = "Password updated successfully."
 
-    user_rows = fetch('user_base', "ROWID=?", 'username, password, creation_date, bio, saved', (u_rowid,))
+    user_rows = fetch('user_base', "ROWID=?", 'username, password, creation_date, saved', (u_rowid,))
     if not user_rows:
         session.pop("u_rowid", None)
         return redirect("/login")
@@ -926,8 +969,7 @@ def profile(u_rowid):
         username=u_data[0],
         password=u_data[1],
         creation_date=u_data[2],
-        bio=u_data[3] or "",
-        saved_items=get_saved_product_entries(u_data[4]),
+        saved_items=get_saved_product_entries(u_data[3]),
         error=error,
         success=success)
 
@@ -1056,13 +1098,9 @@ def create_user(username, password):
     if not username in list:
         # creates user in table
         c.execute(
-            "INSERT INTO user_base(username, password, path, saved, creation_date, bio) VALUES (?, ?, ?, ?, ?, ?)",
-            (username, password, "", " ", date.today().isoformat(), "")
+            "INSERT INTO user_base(username, password, saved, creation_date) VALUES (?, ?, ?, ?)",
+            (username, password, " ", date.today().isoformat())
         )
-
-        # set path
-        c.execute("SELECT rowid FROM user_base WHERE username=?", (username,))
-        c.execute(f"UPDATE user_base SET path = '/profile/{c.fetchall()[0][0]}' WHERE username=?", (username,))
         db.commit()
         db.close()
         return True
@@ -1072,5 +1110,5 @@ def create_user(username, password):
 
 
 if __name__ == "__main__":
-  app.debug = True
+  app.debug = False
   app.run()

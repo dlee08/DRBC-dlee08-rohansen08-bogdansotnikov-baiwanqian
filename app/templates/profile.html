@@ -96,7 +96,10 @@
           {% if saved_items %}
           <ul class="mb-4 saved-list">
             {% for item in saved_items %}
-            <li class="mb-1"><a href="/product_graph/{{ item.group_id }}">{{ item.label }}</a></li>
+            <li class="mb-2 d-flex align-items-center justify-content-between gap-3">
+              <a href="/product_graph/{{ item.group_id }}">{{ item.label }}</a>
+              <a href="/remove_saved_product/{{ item.group_id }}" class="btn btn-outline-danger btn-sm">Remove</a>
+            </li>
             {% endfor %}
           </ul>
           {% else %}
